@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rijkscollectie Verkenner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #f3efe7;
+    --surface: #ffffff;
+    --ink: #241d14;
+    --muted: #6d6152;
+    --border: #ded4c1;
+    --brick: #a83a2c;
+    --brick-ink: #ffffff;
+    --gold: #8a6008;
+    --gold-soft: #f7ecd0;
+    --grey-soft: #ece5d7;
+    --focus: #8a6008;
+    --placeholder-a: #ddd0b0;
+    --placeholder-b: #c4b189;
+    --font-display: 'Bitter', Georgia, 'Times New Roman', serif;
+    --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #17130d;
+      --surface: #201a12;
+      --ink: #ece4d4;
+      --muted: #ab9d84;
+      --border: #362c1e;
+      --brick: #e0705f;
+      --brick-ink: #17110f;
+      --gold: #f0c14e;
+      --gold-soft: #332a10;
+      --grey-soft: #241e15;
+      --focus: #f0c14e;
+      --placeholder-a: #2f2718;
+      --placeholder-b: #3d331f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #17130d;
+    --surface: #201a12;
+    --ink: #ece4d4;
+    --muted: #ab9d84;
+    --border: #362c1e;
+    --brick: #e0705f;
+    --brick-ink: #17110f;
+    --gold: #f0c14e;
+    --gold-soft: #332a10;
+    --grey-soft: #241e15;
+    --focus: #f0c14e;
+    --placeholder-a: #2f2718;
+    --placeholder-b: #3d331f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.45;
+    padding-inline: 16px;
+    padding-block: 20px 40px;
+    margin: 0;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  a { color: var(--gold); }
+  .tabular { font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--gold-soft); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .banner {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    height: clamp(140px, 24vw, 230px);
+    background: #10161f;
+  }
+  .banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .banner-scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(8,10,16,0.05) 0%, rgba(8,10,16,0.4) 60%, rgba(8,10,16,0.86) 100%);
+  }
+  .banner-content {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 14px 18px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .banner-content .eyebrow { color: #e9c877; }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(22px, 4vw, 32px);
+    margin: 2px 0 0;
+    text-wrap: balance;
+    color: #fbf6e8;
+  }
+  .top-meta {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .top-meta a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+
+  .intro { font-size: 13px; color: var(--muted); max-width: 76ch; margin: 12px 0 22px; }
+  .intro strong { color: var(--ink); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 250px 1fr; gap: 20px; align-items: start; }
+  .layout[hidden] { display: none; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; }
+
+  .facets { padding: 16px; display: flex; flex-direction: column; gap: 20px; position: sticky; top: 12px; }
+  @media (max-width: 760px) { .facets { position: static; } }
+
+  .facet-group h2 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .facet-group h2 .count-tag { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .facets-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: -4px 0 2px; }
+
+  input[type="search"], input[type="text"] {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .type-search { margin-bottom: 8px; }
+  .type-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; padding-right: 2px; }
+  .type-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .type-opt:hover { background: var(--grey-soft); }
+  .type-opt.active { background: var(--brick); color: var(--brick-ink); font-weight: 500; }
+  .type-opt .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .type-opt .n { font-family: var(--font-mono); font-size: 10.5px; opacity: 0.75; }
+  .type-empty { font-size: 12px; color: var(--muted); padding: 6px 8px; }
+
+  .period-chart { display: flex; align-items: flex-end; gap: 3px; height: 64px; }
+  .period-bar {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    height: 100%; gap: 4px; cursor: pointer; background: none; border: none; padding: 0; font: inherit; color: inherit;
+  }
+  .period-bar .bar { width: 100%; background: var(--placeholder-b); border-radius: 2px 2px 0 0; min-height: 3px; }
+  .period-bar:hover .bar { background: var(--gold); }
+  .period-bar.active .bar { background: var(--brick); }
+  .period-bar .lbl { font-family: var(--font-mono); font-size: 8px; color: var(--muted); text-align: center; line-height: 1.15; }
+  .period-bar.active .lbl { color: var(--brick); }
+
+  .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .toggle-row input { accent-color: var(--brick); width: 15px; height: 15px; cursor: pointer; }
+
+  .reset-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 10px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--brick); color: var(--brick); }
+
+  /* entity pages (POC): a work's maker, genre or materiaal becomes a browsable node
+     instead of just a filter value -- clicking it opens this profile-style view. */
+  .entity-link {
+    background: none; border: none; padding: 0; font: inherit; color: var(--gold);
+    text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
+  .entity-view { margin-top: 12px; }
+  .entity-header { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); }
+  .back-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em;
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 5px 10px; color: var(--muted); cursor: pointer; margin-bottom: 10px;
+  }
+  .back-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .entity-header h2 { font-family: var(--font-display); font-size: 20px; margin: 0 0 4px; }
+  .entity-meta { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+  .entity-breakdown { display: flex; flex-wrap: wrap; gap: 6px; }
+  .entity-breakdown .chip {
+    font-family: var(--font-mono); font-size: 10.5px; background: var(--grey-soft);
+    border: 1px solid var(--border); border-radius: 20px; padding: 3px 9px; color: var(--muted);
+  }
+
+  .main { display: flex; flex-direction: column; gap: 12px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; }
+  .result-count { font-size: 13px; }
+  .result-count b { font-family: var(--font-mono); font-weight: 500; }
+  .active-filters { font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); }
+
+  .tabs { display: flex; gap: 2px; }
+  .tab-btn {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: var(--grey-soft);
+    border: 1px solid var(--border);
+    padding: 7px 12px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .tab-btn:first-child { border-radius: 3px 0 0 3px; }
+  .tab-btn:last-child { border-radius: 0 3px 3px 0; border-left: none; }
+  .tab-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .content-panel { padding: 0; overflow: hidden; }
+  .state-msg { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--grey-soft);
+    position: sticky;
+    top: 0;
+  }
+  .table-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr.row { cursor: pointer; }
+  tbody tr.row:hover { background: var(--grey-soft); }
+  tbody tr.row.open { background: var(--gold-soft); }
+  .naam-cell { font-weight: 500; }
+  .jaar-cell { font-family: var(--font-mono); white-space: nowrap; }
+
+  tr.detail-row td { background: var(--paper); padding: 16px; }
+  .detail-flex { display: flex; gap: 18px; flex-wrap: wrap; }
+  .detail-thumb {
+    position: relative;
+    width: 140px; height: 140px; flex: none; border-radius: 3px; overflow: hidden;
+    background: linear-gradient(135deg, var(--placeholder-a), var(--placeholder-b));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .detail-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .detail-thumb svg { width: 40%; height: 40%; opacity: 0.5; }
+  .media-strip { display: flex; flex-wrap: wrap; gap: 6px; max-width: 300px; }
+  .detail-thumb-sm { width: 82px; height: 82px; }
+  .detail-body { flex: 1; min-width: 220px; }
+  .detail-title { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 0 0 4px; }
+  .detail-sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+  .detail-desc { font-size: 12.5px; margin: 0 0 10px; max-width: 62ch; }
+  .rights-box {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brick);
+    background: var(--grey-soft);
+    border-radius: 0 3px 3px 0;
+    padding: 8px 10px;
+    margin: 0 0 10px;
+    font-size: 12px;
+    max-width: 62ch;
+  }
+  .rights-box .rights-license { font-weight: 600; }
+  .rights-box .rights-holder { color: var(--muted); }
+  .rights-box .rights-media { display: block; margin-top: 3px; color: var(--muted); }
+  .rights-box .rights-media a { color: var(--muted); }
+  .rights-badge {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(12,10,6,0.75); color: #f5ecd0;
+    font-family: var(--font-mono); font-size: 10px; line-height: 1;
+    padding: 3px 5px; border-radius: 3px;
+    text-decoration: none;
+  }
+  .thumb-fallback {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; width: 100%; height: 100%; color: var(--muted); text-decoration: none;
+  }
+  .thumb-fallback svg { width: 34%; height: 34%; opacity: 0.5; }
+  .thumb-fallback span {
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.03em;
+  }
+  .thumb-fallback:hover { color: var(--gold); }
+  .thumb-fallback:hover svg { opacity: 0.8; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 20px; font-size: 12px; }
+  .detail-grid dt { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 2px; }
+  .detail-grid dd { margin: 0; }
+  .no-val { color: var(--muted); font-style: italic; }
+
+  .pager { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 12px; }
+  .pager button { font: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 6px 12px; cursor: pointer; color: var(--ink); }
+  .pager button:disabled { opacity: 0.35; cursor: default; }
+  .pager button:not(:disabled):hover { border-color: var(--gold); color: var(--gold); }
+
+  /* gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; padding: 16px; }
+  .card { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; cursor: pointer; background: var(--surface); display: flex; flex-direction: column; }
+  .card:hover { border-color: var(--gold); }
+  .card-thumb { position: relative; aspect-ratio: 1 / 1; background: linear-gradient(135deg, var(--placeholder-a), var(--placeholder-b)); display: flex; align-items: center; justify-content: center; }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-thumb svg { width: 34%; height: 34%; opacity: 0.5; }
+  .card-body { padding: 8px 9px; }
+  .card-title { font-size: 12px; font-weight: 500; line-height: 1.3; margin: 0 0 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-sub { font-size: 10.5px; color: var(--muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  footer {
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    justify-content: space-between;
+  }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <img src="images/banner.webp" alt="Nederlands rivierlandschap bij maanlicht, omringd door werken uit de Rijkscollectie" loading="eager">
+    <div class="banner-scrim"></div>
+    <div class="banner-content">
+      <span class="eyebrow">Prototype &middot; faceted search</span>
+      <h1>Rijkscollectie Verkenner</h1>
+    </div>
+  </div>
+
+  <div class="top-meta">
+    Live SPARQL tegen <a href="https://linkeddata.cultureelerfgoed.nl/rce/rijkscollectie-rce/" target="_blank" rel="noopener">RCE Rijkscollectie</a>
+  </div>
+
+  <p class="intro">
+    Klein werkend prototype van een <strong>facetzoek-portal</strong> op de kunst- en objectencollectie van de
+    Rijksdienst voor het Cultureel Erfgoed (ruim 130.000 werken) &mdash; qua patroon (facetten, resultatentabel,
+    galerijweergave) geïnspireerd op <a href="https://github.com/SemanticComputing/sampo-ui" target="_blank" rel="noopener">Sampo-UI</a>,
+    maar hier als losse pagina die rechtstreeks op het publieke
+    <a href="https://api.linkeddata.cultureelerfgoed.nl/datasets/rce/rijkscollectie-rce/sparql" target="_blank" rel="noopener">Rijkscollectie SPARQL-endpoint</a>
+    bevraagt, zonder eigen backend. Filter op maker, genre en materiaal, of zoek op titel.
+    <strong>De meeste werken en afbeeldingen zijn auteursrechtelijk beschermd</strong> &mdash; de rechtenvermelding
+    staat bij elk werk (klik een regel open) en op elke thumbnail (&copy;-icoontje).
+  </p>
+
+  <div class="layout">
+
+    <aside class="panel facets">
+
+      <p class="facets-note">Aantallen bij facetten zijn collectiebreed en veranderen niet mee met je huidige filters &mdash; sommige combinaties kunnen dus 0 resultaten geven.</p>
+
+      <div class="facet-group">
+        <h2>Zoek op titel</h2>
+        <input type="search" id="searchInput" placeholder="bv. buffet, portret&hellip;" autocomplete="off">
+      </div>
+
+      <div class="facet-group">
+        <h2>Periode</h2>
+        <div class="period-chart" id="periodChart"><div class="type-empty">Bezig met laden&hellip;</div></div>
+      </div>
+
+      <div class="facet-group">
+        <h2>Maker <span class="count-tag" id="makerFacetNote"></span></h2>
+        <input type="text" class="type-search" id="makerSearch" placeholder="filter makers&hellip;" autocomplete="off">
+        <div class="type-list" id="makerList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+      </div>
+
+      <div class="facet-group">
+        <h2>Genre <span class="count-tag" id="genreFacetNote"></span></h2>
+        <div class="type-list" id="genreList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+      </div>
+
+      <div class="facet-group">
+        <h2>Materiaal <span class="count-tag" id="materialFacetNote"></span></h2>
+        <input type="text" class="type-search" id="materialSearch" placeholder="filter materialen&hellip;" autocomplete="off">
+        <div class="type-list" id="materialList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+      </div>
+
+      <div class="facet-group">
+        <h2>Locatie <span class="count-tag" id="locationFacetNote"></span></h2>
+        <input type="text" class="type-search" id="locationSearch" placeholder="filter locaties&hellip;" autocomplete="off">
+        <div class="type-list" id="locationList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+      </div>
+
+      <div class="facet-group">
+        <label class="toggle-row">
+          <input type="checkbox" id="hasImageToggle">
+          <span>Alleen werken met afbeelding</span>
+        </label>
+      </div>
+
+      <button class="reset-btn" id="resetBtn" type="button">&times; Filters wissen</button>
+    </aside>
+
+    <section class="main">
+
+      <div class="panel toolbar">
+        <div class="result-count" id="resultCount">Bezig met zoeken&hellip;</div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="table" type="button">Tabel</button>
+          <button class="tab-btn" data-tab="gallery" type="button">Galerij</button>
+        </div>
+      </div>
+
+      <div class="panel content-panel" id="tableView">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Titel</th><th>Maker</th><th>Genre</th><th>Jaar</th></tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="prevBtnT" type="button">&larr; Vorige</button>
+          <span id="pageLabelT" class="tabular">pagina 1</span>
+          <button id="nextBtnT" type="button">Volgende &rarr;</button>
+        </div>
+      </div>
+
+      <div class="panel content-panel" id="galleryView" hidden>
+        <div class="gallery" id="galleryGrid"></div>
+        <div class="pager">
+          <button id="prevBtnG" type="button">&larr; Vorige</button>
+          <span id="pageLabelG" class="tabular">pagina 1</span>
+          <button id="nextBtnG" type="button">Volgende &rarr;</button>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <div class="panel entity-view" id="entityView" hidden>
+    <div class="entity-header">
+      <button class="back-btn" id="entityBackBtn" type="button">&larr; Terug naar zoeken</button>
+      <span class="eyebrow" id="entityDim"></span>
+      <h2 id="entityName"></h2>
+      <p class="entity-meta" id="entityMeta"></p>
+      <div class="entity-breakdown" id="entityBreakdown"></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Titel</th><th id="entityWorksCol2">Genre</th><th>Jaar</th></tr></thead>
+        <tbody id="entityWorksBody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="entityPrevBtn" type="button">&larr; Vorige</button>
+      <span id="entityPageLabel" class="tabular">pagina 1</span>
+      <button id="entityNextBtn" type="button">Volgende &rarr;</button>
+    </div>
+  </div>
+
+  <footer>
+    <span>Data: RCE Rijkscollectie (schema.org-model) via TriplyDB &middot; ververst live, geen cache.</span>
+    <span>Patroon geïnspireerd op <a href="https://github.com/SemanticComputing/sampo-ui" target="_blank" rel="noopener">SemanticComputing/sampo-ui</a> (Aalto Semantic Computing).</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Same-origin proxy (worker.js) that attaches the API token server-side -- see README.
+  var ENDPOINT = '/api/sparql';
+  var PAGE_SIZE = 12;
+  var PLACEHOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="1.5"/><circle cx="9" cy="9.5" r="2"/><path d="M3 16l5.5-5.5c.6-.6 1.4-.6 2 0L17 17"/><path d="M14 14l1.5-1.5c.6-.6 1.4-.6 2 0L21 16"/></svg>';
+
+  // schema:temporal is a free-text year string ("1928", not a typed date), so period
+  // buckets are computed client-side from the same 4-digit-prefix parse the SPARQL side
+  // uses (see buildPeriodFacetQuery). Bucket edges checked against the live distribution
+  // (11.8k / 10.8k / 35.2k / 40.7k / 21k / 1.4k works) before picking these six.
+  var PERIOD_BUCKETS = [
+    { id: '1', label: '≤1799' },
+    { id: '2', label: '1800–1899' },
+    { id: '3', label: '1900–1949' },
+    { id: '4', label: '1950–1979' },
+    { id: '5', label: '1980–1999' },
+    { id: '6', label: '2000–heden' }
+  ];
+
+  var state = {
+    maker: null,       // literal label string
+    genreUri: null,
+    materialUri: null,
+    locationUri: null,
+    periodBucket: null, // PERIOD_BUCKETS id, or null
+    hasImage: false,
+    search: '',
+    offset: 0,
+    tab: 'table',
+    openRow: null,
+    makerOptions: [],
+    materialOptions: [],
+    genreOptions: [],
+    locationOptions: [],
+    makerSearchResults: null,
+    materialSearchResults: null,
+    locationSearchResults: null,
+    periodCounts: null,
+    mediaCache: {},
+    lastRows: [],
+    lastEntityRows: [],
+    view: 'browse',      // 'browse' | 'entity'
+    viewDim: null,       // 'maker' | 'genre' | 'material' when view === 'entity'
+    viewId: null,        // maker name, or genre/materiaal URI
+    entityOffset: 0,
+    entityOpenRow: null
+  };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function sparqlEsc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+
+  // Centralised so a future token/proxy swap (planned once this endpoint
+  // is locked down) only needs to change this one function.
+  function runQuery(query) {
+    var url = ENDPOINT + '?query=' + encodeURIComponent(query);
+    return fetch(url, { headers: { 'Accept': 'application/sparql-results+json' } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (json) { return json.results.bindings; });
+  }
+
+  // ---------- query builders ----------
+
+  // min/max year (inclusive) per PERIOD_BUCKETS id -- kept in sync with the IF-chain in
+  // buildPeriodFacetQuery() by hand since SPARQL has no shared-constant mechanism to pull from.
+  var PERIOD_RANGES = { '1': [null, 1799], '2': [1800, 1899], '3': [1900, 1949], '4': [1950, 1979], '5': [1980, 1999], '6': [2000, null] };
+
+  function innerWhere() {
+    var lines = ['?s a schema:CreativeWork .'];
+    if (state.maker) {
+      lines.push('?s schema:creator ?creatorF . ?creatorF schema:name ?creatorNameF .');
+      lines.push('FILTER(STR(?creatorNameF) = "' + sparqlEsc(state.maker) + '")');
+    }
+    if (state.genreUri) lines.push('?s schema:genre <' + state.genreUri + '> .');
+    if (state.materialUri) lines.push('?s schema:material <' + state.materialUri + '> .');
+    if (state.locationUri) lines.push('?s schema:locationCreated <' + state.locationUri + '> .');
+    if (state.hasImage) lines.push('?s schema:associatedMedia ?anyMediaF .');
+    if (state.periodBucket) {
+      var range = PERIOD_RANGES[state.periodBucket];
+      lines.push('?s schema:temporal ?temporalF .');
+      lines.push('BIND(xsd:integer(REPLACE(STR(?temporalF), "^([0-9]{4}).*$", "$1")) AS ?yearF)');
+      var bounds = ['BOUND(?yearF)'];
+      if (range[0] !== null) bounds.push('?yearF >= ' + range[0]);
+      if (range[1] !== null) bounds.push('?yearF <= ' + range[1]);
+      lines.push('FILTER(' + bounds.join(' && ') + ')');
+    }
+    if (state.search) {
+      lines.push('?s schema:name ?nameF .');
+      lines.push('FILTER(CONTAINS(LCASE(STR(?nameF)), "' + sparqlEsc(state.search.toLowerCase()) + '"))');
+    }
+    return lines.join('\n    ');
+  }
+
+  function buildIdsQuery() {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>',
+      'SELECT DISTINCT ?s WHERE {',
+      '    ' + innerWhere(),
+      '}',
+      'ORDER BY ?s',
+      'LIMIT ' + PAGE_SIZE + ' OFFSET ' + state.offset
+    ].join('\n');
+  }
+
+  function buildCountQuery() {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>',
+      'SELECT (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      '  ' + innerWhere(),
+      '}'
+    ].join('\n');
+  }
+
+  function buildPeriodFacetQuery() {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>',
+      'SELECT ?bucket (COUNT(?y) AS ?cnt) WHERE {',
+      '  ?s a schema:CreativeWork ; schema:temporal ?t .',
+      '  BIND(xsd:integer(REPLACE(STR(?t), "^([0-9]{4}).*$", "$1")) AS ?y)',
+      '  FILTER(BOUND(?y) && ?y > 1000 && ?y < 2100)',
+      '  BIND(IF(?y < 1800, "1", IF(?y < 1900, "2", IF(?y < 1950, "3", IF(?y < 1980, "4", IF(?y < 2000, "5", "6"))))) AS ?bucket)',
+      '}',
+      'GROUP BY ?bucket'
+    ].join('\n');
+  }
+
+  function valuesClause(ids) {
+    return 'VALUES ?s { ' + ids.map(function (id) { return '<' + id + '>'; }).join(' ') + ' }';
+  }
+
+  // A work can have several associatedMedia items (front, back, detail shots -- e.g. a
+  // panel's back with conservation labels), and the page-level buildDetailQuery() only
+  // SAMPLEs one arbitrary one for the row summary. Fetched on demand once a row/card is
+  // opened, so every image for that one work shows up, not just whichever SAMPLE picked.
+  function buildAllMediaQuery(workUri) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT ?thumb (SAMPLE(?license) AS ?licenseL) WHERE {',
+      '  <' + workUri + '> schema:associatedMedia ?media .',
+      '  ?media schema:thumbnailUrl ?thumb .',
+      '  OPTIONAL { ?media schema:license ?license . }',
+      '}',
+      'GROUP BY ?thumb'
+    ].join('\n');
+  }
+
+  // Entity pages (POC): maker, genre, materiaal and locatie can each become a browsable
+  // node instead of just a filter value. maker is identified by its literal name --
+  // Person nodes aren't deduplicated in this dataset (every work mints its own Person
+  // URI even for the same real person -- see the "Gestel, Leo" x N distinct URIs found
+  // earlier this session), so it reuses the facet's FILTER(STR(...) = "...") pattern
+  // rather than a Person URI join. genre, materiaal and locatie ARE deduplicated (shared
+  // URI per value, like their facets), so those are identified by URI instead.
+  //
+  // Periode is deliberately NOT a dimension here: it's a client-side bucket over a raw
+  // year string, not a resource that exists in the graph, so it has no URI to
+  // dereference and no "entity page" to be -- it stays a plain range filter.
+  var GENRE_JOIN = '?s schema:genre ?bObj . ?bObj schema:name ?bLabel .';
+  var MAKER_JOIN = '?s schema:creator ?bObj . ?bObj schema:name ?bLabel .';
+  var ENTITY_DIMENSIONS = {
+    maker: {
+      label: 'Maker', breakdownDim: 'Genre', breakdownJoin: GENRE_JOIN,
+      rowCol2: function (row) { return { dim: 'genre', id: row.genreUriL ? row.genreUriL.value : null, label: row.genreL ? row.genreL.value : '—' }; }
+    },
+    genre: {
+      label: 'Genre', breakdownDim: 'Maker', breakdownJoin: MAKER_JOIN,
+      rowCol2: function (row) { return { dim: 'maker', id: row.creatorL ? row.creatorL.value : null, label: row.creatorL ? row.creatorL.value : '—' }; }
+    },
+    material: {
+      label: 'Materiaal', breakdownDim: 'Genre', breakdownJoin: GENRE_JOIN,
+      rowCol2: function (row) { return { dim: 'genre', id: row.genreUriL ? row.genreUriL.value : null, label: row.genreL ? row.genreL.value : '—' }; }
+    },
+    location: {
+      label: 'Locatie', breakdownDim: 'Maker', breakdownJoin: MAKER_JOIN,
+      rowCol2: function (row) { return { dim: 'maker', id: row.creatorL ? row.creatorL.value : null, label: row.creatorL ? row.creatorL.value : '—' }; }
+    }
+  };
+
+  function buildEntityFilterClause(dim, id) {
+    if (dim === 'maker') {
+      return '?s schema:creator ?creatorF . ?creatorF schema:name ?creatorNameF .\n  FILTER(STR(?creatorNameF) = "' + sparqlEsc(id) + '")';
+    }
+    var pred = dim === 'genre' ? 'schema:genre' : dim === 'material' ? 'schema:material' : 'schema:locationCreated';
+    return '?s ' + pred + ' <' + id + '> .';
+  }
+  function buildEntityIdsQuery(dim, id, offset) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT DISTINCT ?s WHERE {',
+      '  ?s a schema:CreativeWork .',
+      '  ' + buildEntityFilterClause(dim, id),
+      '}',
+      'ORDER BY ?s',
+      'LIMIT ' + PAGE_SIZE + ' OFFSET ' + offset
+    ].join('\n');
+  }
+  function buildEntityCountQuery(dim, id) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      '  ?s a schema:CreativeWork .',
+      '  ' + buildEntityFilterClause(dim, id),
+      '}'
+    ].join('\n');
+  }
+  function buildEntityBreakdownQuery(dim, id) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT ?bLabel (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      '  ?s a schema:CreativeWork .',
+      '  ' + buildEntityFilterClause(dim, id),
+      '  ' + ENTITY_DIMENSIONS[dim].breakdownJoin,
+      '}',
+      'GROUP BY ?bLabel',
+      'ORDER BY DESC(?cnt)',
+      'LIMIT 10'
+    ].join('\n');
+  }
+  // genre/materiaal ids are URIs -- resolve their label from the already-loaded facet
+  // lists when possible (instant), falling back to a tiny live lookup for a value that
+  // was reached via URL/hash before the facets finished loading.
+  function buildEntityLabelQuery(id) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT (SAMPLE(?label) AS ?labelL) WHERE { <' + id + '> schema:name ?label . }'
+    ].join('\n');
+  }
+  function resolveEntityLabel(dim, id) {
+    if (dim === 'maker') return Promise.resolve(id);
+    var pools = dim === 'genre' ? [state.genreOptions, state.genreSearchResults]
+      : dim === 'material' ? [state.materialOptions, state.materialSearchResults]
+      : [state.locationOptions, state.locationSearchResults];
+    for (var i = 0; i < pools.length; i++) {
+      if (!pools[i]) continue;
+      var hit = pools[i].filter(function (o) { return o.id === id; })[0];
+      if (hit) return Promise.resolve(hit.label);
+    }
+    return runQuery(buildEntityLabelQuery(id)).then(function (rows) {
+      return rows.length && rows[0].labelL ? rows[0].labelL.value : id;
+    });
+  }
+
+  // SPARQL does NOT guarantee that two independent SAMPLE() calls over the same OPTIONAL
+  // pattern pick their values from the same solution row -- e.g. SAMPLE(?genre) and
+  // SAMPLE(?genreLabel) can legally return a URI from one genre and the label of a
+  // *different* genre on a multi-valued work, and the same risk applies to an image's
+  // thumbnail vs. its own license (a real correctness bug for rights display, flagged in
+  // review). Fix: BIND the correlated fields into one packed string per row *before*
+  // aggregating, so a single SAMPLE() picks one atomic, genuinely-paired value; split it
+  // back into parts client-side (see unpackPair/normalizeDetailRow).
+  var PACK_SEP = '|||';
+  function packedPair(a, b) { return 'CONCAT(STR(' + a + '), "' + PACK_SEP + '", COALESCE(STR(' + b + '), ""))'; }
+
+  function buildDetailQuery(ids) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT ?s (SAMPLE(?name) AS ?nameL) (SAMPLE(?creatorLabel) AS ?creatorL)',
+      '  (SAMPLE(?genrePacked) AS ?genrePackedL) (SAMPLE(?materialPacked) AS ?materialPackedL) (SAMPLE(?locationPacked) AS ?locationPackedL)',
+      '  (SAMPLE(?temporal) AS ?temporalL) (SAMPLE(?mediaPacked) AS ?mediaPackedL)',
+      '  (SAMPLE(?license) AS ?licenseL) (SAMPLE(?holderName) AS ?holderNameL)',
+      '  (SAMPLE(?desc) AS ?descL) (SAMPLE(?url) AS ?urlL) (SAMPLE(?size) AS ?sizeL) (SAMPLE(?docNr) AS ?docNrL)',
+      'WHERE {',
+      '  ' + valuesClause(ids),
+      '  OPTIONAL { ?s schema:name ?name . }', // some works genuinely have no title -- must stay optional or they vanish from this query despite being counted
+      '  OPTIONAL { ?s schema:creator ?creator . ?creator schema:name ?creatorLabel . }',
+      // schema:size is multi-valued: usually one human-readable literal ("hoogte: 6.5 cm\n...")
+      // plus separate structured schema:QuantitativeValue resources for the same
+      // measurements -- filter to the literal to match what Beeldbank itself shows.
+      '  OPTIONAL { ?s schema:size ?size . FILTER(isLiteral(?size)) }',
+      '  OPTIONAL { ?s schema:identifier ?identifier . ?identifier schema:value ?docNr . }',
+      '  OPTIONAL { ?s schema:genre ?genre . ?genre schema:name ?genreLabel . BIND(' + packedPair('?genre', '?genreLabel') + ' AS ?genrePacked) }',
+      '  OPTIONAL { ?s schema:material ?material . ?material schema:name ?materialLabel . BIND(' + packedPair('?material', '?materialLabel') + ' AS ?materialPacked) }',
+      '  OPTIONAL { ?s schema:locationCreated ?location . ?location schema:name ?locationLabel . BIND(' + packedPair('?location', '?locationLabel') + ' AS ?locationPacked) }',
+      '  OPTIONAL { ?s schema:temporal ?temporal . }',
+      // schema:associatedMedia -> MediaObject: the image URL lives on schema:thumbnailUrl /
+      // schema:contentUrl, NOT schema:url (that predicate does not exist on MediaObject here).
+      // The MediaObject also carries its own schema:license (a rightsstatements.org URI) --
+      // separate from the CreativeWork's own schema:license text below, since photo/scan
+      // rights and the depicted work's copyright are not always the same rights holder.
+      '  OPTIONAL {',
+      '    ?s schema:associatedMedia ?media . ?media schema:thumbnailUrl ?mediaThumb .',
+      '    OPTIONAL { ?media schema:license ?mediaLicense . }',
+      '    BIND(' + packedPair('?mediaThumb', '?mediaLicense') + ' AS ?mediaPacked)',
+      '  }',
+      '  OPTIONAL { ?s schema:license ?license . }',
+      '  OPTIONAL { ?s schema:copyrightHolder ?holder . ?holder schema:name ?holderName . }',
+      '  OPTIONAL { ?s schema:description ?desc . }',
+      '  OPTIONAL { ?s schema:url ?url . }',
+      '}',
+      'GROUP BY ?s'
+    ].join('\n');
+  }
+
+  // Unpacks a "uri|||label" (or "thumb|||license") string back into its two correlated
+  // parts, mirroring the shape query results normally have ({value: "..."} or null) so
+  // every existing render function can keep reading row.genreL / row.genreUriL etc.
+  // unchanged -- only buildDetailQuery's shape and this one normalization step changed.
+  function unpackPair(packedBinding) {
+    if (!packedBinding) return [null, null];
+    var raw = packedBinding.value;
+    var i = raw.indexOf(PACK_SEP);
+    var a = i === -1 ? raw : raw.slice(0, i);
+    var b = i === -1 ? '' : raw.slice(i + PACK_SEP.length);
+    return [a ? { value: a } : null, b ? { value: b } : null];
+  }
+  function normalizeDetailRow(row) {
+    var genre = unpackPair(row.genrePackedL);
+    var material = unpackPair(row.materialPackedL);
+    var location = unpackPair(row.locationPackedL);
+    var media = unpackPair(row.mediaPackedL);
+    row.genreUriL = genre[0]; row.genreL = genre[1];
+    row.materialUriL = material[0]; row.materialL = material[1];
+    row.locationUriL = location[0]; row.locationL = location[1];
+    row.mediaThumbL = media[0]; row.mediaLicenseL = media[1];
+    return row;
+  }
+
+  function buildFacetQuery(kind, searchTerm) {
+    // kind: 'maker' | 'genre' | 'material'. With searchTerm, drops the top-N cap and
+    // instead matches ANY value containing it -- see wireLiveFacetSearch().
+    var needleFilter = searchTerm
+      ? 'FILTER(CONTAINS(LCASE(STR(?label)), "' + sparqlEsc(searchTerm.toLowerCase()) + '"))'
+      : '';
+    if (kind === 'maker') {
+      return [
+        'PREFIX schema: <https://schema.org/>',
+        'SELECT ?label (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+        '  ?s a schema:CreativeWork ; schema:creator ?creator .',
+        '  ?creator schema:name ?label .',
+        '  ' + needleFilter,
+        '}',
+        'GROUP BY ?label',
+        'ORDER BY DESC(?cnt)',
+        'LIMIT ' + (searchTerm ? 40 : 60)
+      ].join('\n');
+    }
+    var pred = kind === 'genre' ? 'schema:genre' : kind === 'location' ? 'schema:locationCreated' : 'schema:material';
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT ?uri (SAMPLE(?label) AS ?labelL) (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      '  ?s a schema:CreativeWork ; ' + pred + ' ?uri .',
+      '  ?uri schema:name ?label .',
+      '  ' + needleFilter,
+      '}',
+      'GROUP BY ?uri',
+      'ORDER BY DESC(?cnt)',
+      'LIMIT ' + (searchTerm ? 40 : 60)
+    ].join('\n');
+  }
+
+  // ---------- facet rendering ----------
+
+  function renderFacetList(elId, options, activeVal, onPick) {
+    var el = document.getElementById(elId);
+    var opts = options;
+    if (!opts.length) {
+      el.innerHTML = '<div class="type-empty">Geen waarden gevonden.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    opts.forEach(function (o) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'type-opt' + (activeVal === o.id ? ' active' : '');
+      btn.innerHTML = '<span class="lbl">' + esc(o.label) + '</span><span class="n tabular">' + o.count.toLocaleString('nl-NL') + '</span>';
+      btn.addEventListener('click', function () { onPick(o); });
+      el.appendChild(btn);
+    });
+  }
+
+  // A "top N" list can never contain every maker/materiaal (133k works, thousands of
+  // distinct values) -- so once the box has 2+ characters, query the endpoint live for
+  // ANY matching value instead of just filtering the pre-loaded top list client-side.
+  // Genre stays a plain top list: it's a closed ~20-value vocabulary, so there's nothing
+  // a live search would find that the full list doesn't already show.
+  function renderMakerFacet() {
+    var opts = state.makerSearchResults || state.makerOptions;
+    renderFacetList('makerList', opts, state.maker, function (o) {
+      state.maker = state.maker === o.id ? null : o.id;
+      state.offset = 0; state.openRow = null;
+      renderMakerFacet();
+      loadResults();
+    });
+  }
+  function renderGenreFacet() {
+    renderFacetList('genreList', state.genreOptions, state.genreUri, function (o) {
+      state.genreUri = state.genreUri === o.id ? null : o.id;
+      state.offset = 0; state.openRow = null;
+      renderGenreFacet();
+      loadResults();
+    });
+  }
+  function renderMaterialFacet() {
+    var opts = state.materialSearchResults || state.materialOptions;
+    renderFacetList('materialList', opts, state.materialUri, function (o) {
+      state.materialUri = state.materialUri === o.id ? null : o.id;
+      state.offset = 0; state.openRow = null;
+      renderMaterialFacet();
+      loadResults();
+    });
+  }
+  function renderLocationFacet() {
+    var opts = state.locationSearchResults || state.locationOptions;
+    renderFacetList('locationList', opts, state.locationUri, function (o) {
+      state.locationUri = state.locationUri === o.id ? null : o.id;
+      state.offset = 0; state.openRow = null;
+      renderLocationFacet();
+      loadResults();
+    });
+  }
+
+  function renderPeriodChart() {
+    var el = document.getElementById('periodChart');
+    if (!state.periodCounts) { el.innerHTML = '<div class="type-empty">Bezig met laden&hellip;</div>'; return; }
+    var maxC = 0;
+    PERIOD_BUCKETS.forEach(function (b) { maxC = Math.max(maxC, state.periodCounts[b.id] || 0); });
+    el.innerHTML = '';
+    PERIOD_BUCKETS.forEach(function (b) {
+      var c = state.periodCounts[b.id] || 0;
+      var pct = maxC ? Math.max(4, Math.round(c / maxC * 100)) : 4;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'period-bar' + (state.periodBucket === b.id ? ' active' : '');
+      btn.title = c.toLocaleString('nl-NL') + ' werken';
+      btn.innerHTML = '<span class="bar" style="height:' + pct + '%"></span><span class="lbl">' + b.label + '</span>';
+      btn.addEventListener('click', function () {
+        state.periodBucket = state.periodBucket === b.id ? null : b.id;
+        state.offset = 0; state.openRow = null;
+        renderPeriodChart();
+        loadResults();
+      });
+      el.appendChild(btn);
+    });
+  }
+
+  // Each facet-search input gets its OWN debounce timer and its own staleness token --
+  // a single shared timer meant typing in one field could silently swallow another
+  // field's pending search, and with no token guard a slow response for an earlier
+  // keystroke could land after (and overwrite) a newer one's results. cancel() lets
+  // resetBtn kill any in-flight search when the user clears filters, so a stale response
+  // can't repopulate a field the user just emptied.
+  var facetSearchCancellers = [];
+  function wireLiveFacetSearch(inputId, kind, listId, resultsKey, renderFn) {
+    var timer = null;
+    var token = 0;
+    function cancel() { clearTimeout(timer); token++; }
+    facetSearchCancellers.push(cancel);
+    document.getElementById(inputId).addEventListener('input', function (e) {
+      clearTimeout(timer);
+      var term = e.target.value.trim();
+      if (term.length < 2) { token++; state[resultsKey] = null; renderFn(); return; }
+      document.getElementById(listId).innerHTML = '<div class="type-empty">Zoeken&hellip;</div>';
+      var myToken = ++token;
+      timer = setTimeout(function () {
+        runQuery(buildFacetQuery(kind, term)).then(function (rows) {
+          if (myToken !== token) return; // a newer keystroke (or a reset) superseded this
+          state[resultsKey] = kind === 'maker'
+            ? rows.map(function (r) { return { id: r.label.value, label: r.label.value, count: parseInt(r.cnt.value, 10) }; })
+            : rows.map(function (r) { return { id: r.uri.value, label: r.labelL.value, count: parseInt(r.cnt.value, 10) }; });
+          renderFn();
+        }).catch(function () {
+          if (myToken !== token) return;
+          document.getElementById(listId).innerHTML = '<div class="type-empty">Zoeken mislukt.</div>';
+        });
+      }, 400);
+    });
+  }
+
+  function loadFacets() {
+    runQuery(buildFacetQuery('maker')).then(function (rows) {
+      state.makerOptions = rows.map(function (r) { return { id: r.label.value, label: r.label.value, count: parseInt(r.cnt.value, 10) }; });
+      document.getElementById('makerFacetNote').textContent = 'top ' + state.makerOptions.length;
+      renderMakerFacet();
+    }).catch(function () { document.getElementById('makerList').innerHTML = '<div class="type-empty">Kon makers niet laden.</div>'; });
+
+    runQuery(buildFacetQuery('genre')).then(function (rows) {
+      state.genreOptions = rows.map(function (r) { return { id: r.uri.value, label: r.labelL.value, count: parseInt(r.cnt.value, 10) }; });
+      document.getElementById('genreFacetNote').textContent = state.genreOptions.length;
+      renderGenreFacet();
+    }).catch(function () { document.getElementById('genreList').innerHTML = '<div class="type-empty">Kon genres niet laden.</div>'; });
+
+    runQuery(buildFacetQuery('material')).then(function (rows) {
+      state.materialOptions = rows.map(function (r) { return { id: r.uri.value, label: r.labelL.value, count: parseInt(r.cnt.value, 10) }; });
+      document.getElementById('materialFacetNote').textContent = 'top ' + state.materialOptions.length;
+      renderMaterialFacet();
+    }).catch(function () { document.getElementById('materialList').innerHTML = '<div class="type-empty">Kon materialen niet laden.</div>'; });
+
+    runQuery(buildFacetQuery('location')).then(function (rows) {
+      state.locationOptions = rows.map(function (r) { return { id: r.uri.value, label: r.labelL.value, count: parseInt(r.cnt.value, 10) }; });
+      document.getElementById('locationFacetNote').textContent = 'top ' + state.locationOptions.length;
+      renderLocationFacet();
+    }).catch(function () { document.getElementById('locationList').innerHTML = '<div class="type-empty">Kon locaties niet laden.</div>'; });
+
+    runQuery(buildPeriodFacetQuery()).then(function (rows) {
+      state.periodCounts = {};
+      rows.forEach(function (r) { state.periodCounts[r.bucket.value] = parseInt(r.cnt.value, 10); });
+      renderPeriodChart();
+    }).catch(function () { document.getElementById('periodChart').innerHTML = '<div class="type-empty">Kon periodes niet laden.</div>'; });
+  }
+
+  // ---------- results rendering ----------
+
+  function localId(uri) { return uri.split('/').pop(); }
+
+  function renderResultCount(count) {
+    var el = document.getElementById('resultCount');
+    var parts = ['<b class="tabular">' + (count === null ? '&hellip;' : count.toLocaleString('nl-NL')) + '</b> werken'];
+    var filters = [];
+    if (state.maker) filters.push(state.maker);
+    if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; if (g) filters.push(g.label); }
+    if (state.materialUri) { var m = state.materialOptions.filter(function (o) { return o.id === state.materialUri; })[0]; if (m) filters.push(m.label); }
+    if (state.locationUri) {
+      var l = (state.locationSearchResults || state.locationOptions).filter(function (o) { return o.id === state.locationUri; })[0];
+      filters.push(l ? l.label : 'locatie');
+    }
+    if (state.periodBucket) { var p = PERIOD_BUCKETS.filter(function (b) { return b.id === state.periodBucket; })[0]; if (p) filters.push(p.label); }
+    if (state.hasImage) filters.push('met afbeelding');
+    if (state.search) filters.push('"' + esc(state.search) + '"');
+    el.innerHTML = parts.join(' ') + (filters.length ? ' <span class="active-filters">&middot; ' + esc(filters.join(' + ')) + '</span>' : '');
+  }
+
+  // Known rightsstatements.org URIs seen in this dataset's schema:license on MediaObject,
+  // mapped to a short Dutch label. Falls back to a generic notice for anything unmapped
+  // rather than silently implying free reuse.
+  var RIGHTS_LABELS = {
+    'https://rightsstatements.org/page/InC/1.0/?language=nl': 'In Copyright',
+    'https://rightsstatements.org/vocab/InC/1.0/': 'In Copyright',
+    'https://rightsstatements.org/page/NoC-NC/1.0/?language=nl': 'Niet auteursrechtelijk beschermd, uitsluitend niet-commercieel gebruik toegestaan',
+    'https://rightsstatements.org/page/CNE/1.0/?language=nl': 'Auteursrecht niet geëvalueerd',
+    'https://creativecommons.org/publicdomain/zero/1.0/': 'Publiek domein (CC0)'
+  };
+  function rightsLabel(uri) { return RIGHTS_LABELS[uri] || 'rechtenstatus: zie bron'; }
+
+  // Only ~30% of works carry an image in the linked-data export (schema:associatedMedia
+  // is simply absent for the rest, even when the RCE's own Beeldbank does have one) --
+  // schema:url is present on virtually every work, so when there's no thumbnail we link
+  // the placeholder straight to that record instead of showing a dead-looking icon.
+  function thumbHtml(thumbUrl, mediaLicense, beeldbankUrl) {
+    if (thumbUrl) {
+      var img = '<img src="' + esc(thumbUrl) + '" alt="" loading="lazy" onerror="this.outerHTML=' + JSON.stringify(PLACEHOLDER_ICON).replace(/"/g, '&quot;') + '">';
+      var badge = mediaLicense
+        ? '<a class="rights-badge" href="' + esc(mediaLicense) + '" target="_blank" rel="noopener" title="Afbeeldingsrechten: ' + esc(rightsLabel(mediaLicense)) + '" onclick="event.stopPropagation()">&copy;</a>'
+        : '';
+      return img + badge;
+    }
+    if (beeldbankUrl) {
+      return '<a class="thumb-fallback" href="' + esc(beeldbankUrl) + '" target="_blank" rel="noopener" title="Geen afbeelding in de linked data -- bekijk in de Beeldbank" onclick="event.stopPropagation()">' +
+        PLACEHOLDER_ICON + '<span>Beeldbank &rarr;</span></a>';
+    }
+    return PLACEHOLDER_ICON;
+  }
+
+  // Fetches every associatedMedia item for one work the first time its detail row opens
+  // (see buildAllMediaQuery) and caches the result; re-renders whichever view is
+  // currently showing it once it lands -- the main table, or an entity page's own list
+  // (they're separate row arrays/render functions, so re-rendering the wrong one left an
+  // entity page's extra images never appearing until some unrelated re-render happened).
+  function ensureMediaLoaded(workUri) {
+    if (state.mediaCache[workUri] !== undefined) return;
+    state.mediaCache[workUri] = 'loading';
+    runQuery(buildAllMediaQuery(workUri)).then(function (rows) {
+      state.mediaCache[workUri] = rows.map(function (r) {
+        return { thumb: r.thumb.value, license: r.licenseL ? r.licenseL.value : null };
+      });
+      if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
+      else renderTable(state.lastRows);
+    }).catch(function () { state.mediaCache[workUri] = []; });
+  }
+
+  function mediaAreaHtml(row, sampleThumb, sampleLicense, beeldbank) {
+    var cached = state.mediaCache[row.s.value];
+    if (cached === undefined) { ensureMediaLoaded(row.s.value); cached = 'loading'; }
+    if (cached === 'loading') {
+      return '<div class="detail-thumb">' + thumbHtml(sampleThumb, sampleLicense, beeldbank) + '</div>';
+    }
+    if (!cached.length) {
+      return '<div class="detail-thumb">' + thumbHtml(null, null, beeldbank) + '</div>';
+    }
+    return '<div class="media-strip">' + cached.map(function (m) {
+      return '<div class="detail-thumb detail-thumb-sm">' + thumbHtml(m.thumb, m.license, beeldbank) + '</div>';
+    }).join('') + '</div>';
+  }
+
+  // Renders maker/genre/materiaal as a clickable node (see ENTITY_DIMENSIONS) instead of
+  // plain text, wherever an id is available for that dimension.
+  function entityLinkHtml(dim, id, label) {
+    if (!id || !label || label === '—') return esc(label || '—');
+    return '<button type="button" class="entity-link" data-dim="' + dim + '" data-id="' + esc(id) + '">' + esc(label) + '</button>';
+  }
+  function handleEntityLinkClick(e) {
+    var el = e.target.closest('.entity-link');
+    if (!el) return false;
+    e.stopPropagation();
+    openEntityPage(el.getAttribute('data-dim'), el.getAttribute('data-id'));
+    return true;
+  }
+
+  // Shared expandable detail panel (image(s), rights, description, cross-linked
+  // genre/materiaal/maker) used by both the main results table and an entity page's own
+  // work list, so a title never has to leave the app just to see what it's a picture of.
+  function detailPanelTd(row, colspan) {
+    var naam = row.nameL ? row.nameL.value : '(titel onbekend)';
+    var maker = row.creatorL ? row.creatorL.value : '—';
+    var genre = row.genreL ? row.genreL.value : '—';
+    var genreUri = row.genreUriL ? row.genreUriL.value : null;
+    var jaar = row.temporalL ? row.temporalL.value : '—';
+    var mediaThumb = row.mediaThumbL ? row.mediaThumbL.value : null;
+    var mediaLicense = row.mediaLicenseL ? row.mediaLicenseL.value : null;
+    var license = row.licenseL ? row.licenseL.value : null;
+    var holderName = row.holderNameL ? row.holderNameL.value : null;
+    var desc = row.descL ? row.descL.value : null;
+    var material = row.materialL ? row.materialL.value : null;
+    var materialUri = row.materialUriL ? row.materialUriL.value : null;
+    var location = row.locationL ? row.locationL.value : null;
+    var locationUri = row.locationUriL ? row.locationUriL.value : null;
+    var beeldbank = row.urlL ? row.urlL.value : null;
+    var size = row.sizeL ? row.sizeL.value.replace(/\s*\n\s*/g, ' · ').trim() : null;
+    var docNr = row.docNrL ? row.docNrL.value : null;
+    return '<td colspan="' + colspan + '"><div class="detail-flex">' +
+      mediaAreaHtml(row, mediaThumb, mediaLicense, beeldbank) +
+      '<div class="detail-body">' +
+        '<p class="detail-title">' + esc(naam) + '</p>' +
+        '<p class="detail-sub">' + entityLinkHtml('maker', maker, maker) + (jaar !== '—' ? ' &middot; ' + esc(jaar) : '') + '</p>' +
+        '<div class="rights-box">' +
+          '<span class="rights-license">' + esc(license || 'rechtenstatus onbekend') + '</span>' +
+          (holderName && holderName !== license ? ' <span class="rights-holder">(rechthebbende: ' + esc(holderName) + ')</span>' : '') +
+          (mediaLicense ? '<a class="rights-media" href="' + esc(mediaLicense) + '" target="_blank" rel="noopener">Afbeelding: ' + esc(rightsLabel(mediaLicense)) + ' &rarr;</a>' : '') +
+        '</div>' +
+        (desc ? '<p class="detail-desc">' + esc(desc) + '</p>' : '') +
+        '<dl class="detail-grid">' +
+          '<div><dt>Genre</dt><dd>' + entityLinkHtml('genre', genreUri, genre) + '</dd></div>' +
+          '<div><dt>Materiaal</dt><dd>' + (material ? entityLinkHtml('material', materialUri, material) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
+          '<div><dt>Locatie</dt><dd>' + (location ? entityLinkHtml('location', locationUri, location) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
+          '<div><dt>Afmetingen</dt><dd>' + (size ? esc(size) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
+          '<div><dt>Documentnummer</dt><dd>' + (docNr ? '<span class="tabular">' + esc(docNr) + '</span>' : '<span class="no-val">onbekend</span>') + '</dd></div>' +
+          '<div><dt>CHO-URI</dt><dd style="font-family:var(--font-mono);font-size:10.5px;word-break:break-all;"><a href="' + esc(row.s.value) + '" target="_blank" rel="noopener">' + esc(localId(row.s.value)) + '</a></dd></div>' +
+          (beeldbank ? '<div><dt>Beeldbank</dt><dd><a href="' + esc(beeldbank) + '" target="_blank" rel="noopener">bekijk record &rarr;</a></dd></div>' : '') +
+        '</dl>' +
+      '</div>' +
+    '</div></td>';
+  }
+
+  function renderTable(rows) {
+    var body = document.getElementById('resultsBody');
+    body.innerHTML = '';
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="state-msg">Geen resultaten voor deze combinatie van filters.</td></tr>';
+      return;
+    }
+    rows.forEach(function (row, idx) {
+      var naam = row.nameL ? row.nameL.value : '(titel onbekend)';
+      var maker = row.creatorL ? row.creatorL.value : '—';
+      var genre = row.genreL ? row.genreL.value : '—';
+      var genreUri = row.genreUriL ? row.genreUriL.value : null;
+      var jaar = row.temporalL ? row.temporalL.value : '—';
+      var tr = document.createElement('tr');
+      tr.className = 'row' + (state.openRow === idx ? ' open' : '');
+      tr.innerHTML =
+        '<td class="naam-cell">' + esc(naam) + '</td>' +
+        '<td>' + entityLinkHtml('maker', maker, maker) + '</td>' +
+        '<td>' + entityLinkHtml('genre', genreUri, genre) + '</td>' +
+        '<td class="jaar-cell tabular">' + esc(jaar) + '</td>';
+      tr.addEventListener('click', function (e) {
+        if (handleEntityLinkClick(e)) return;
+        state.openRow = state.openRow === idx ? null : idx;
+        renderTable(rows);
+      });
+      body.appendChild(tr);
+
+      if (state.openRow === idx) {
+        var dtr = document.createElement('tr');
+        dtr.className = 'detail-row';
+        dtr.innerHTML = detailPanelTd(row, 4);
+        dtr.addEventListener('click', handleEntityLinkClick);
+        body.appendChild(dtr);
+      }
+    });
+  }
+
+  function renderGallery(rows) {
+    var grid = document.getElementById('galleryGrid');
+    if (!rows.length) { grid.innerHTML = '<div class="state-msg">Geen resultaten voor deze combinatie van filters.</div>'; return; }
+    grid.innerHTML = '';
+    rows.forEach(function (row) {
+      var naam = row.nameL ? row.nameL.value : '(titel onbekend)';
+      var maker = row.creatorL ? row.creatorL.value : '—';
+      var mediaThumb = row.mediaThumbL ? row.mediaThumbL.value : null;
+      var mediaLicense = row.mediaLicenseL ? row.mediaLicenseL.value : null;
+      var beeldbank = row.urlL ? row.urlL.value : null;
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<div class="card-thumb">' + thumbHtml(mediaThumb, mediaLicense, beeldbank) + '</div>' +
+        '<div class="card-body"><p class="card-title">' + esc(naam) + '</p><p class="card-sub">' +
+        entityLinkHtml('maker', maker, maker) +
+        '</p></div>';
+      card.addEventListener('click', function (e) {
+        if (handleEntityLinkClick(e)) return;
+        window.open(row.s.value, '_blank', 'noopener');
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  // ---------- entity pages (POC) ----------
+
+  function renderEntityWorks(dim, rows) {
+    var body = document.getElementById('entityWorksBody');
+    body.innerHTML = '';
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="state-msg">Geen werken gevonden.</td></tr>';
+      return;
+    }
+    rows.forEach(function (row, idx) {
+      var naam = row.nameL ? row.nameL.value : '(titel onbekend)';
+      var jaar = row.temporalL ? row.temporalL.value : '—';
+      var col2 = ENTITY_DIMENSIONS[dim].rowCol2(row);
+      var col2Html = entityLinkHtml(col2.dim, col2.id, col2.label);
+      var tr = document.createElement('tr');
+      tr.className = 'row' + (state.entityOpenRow === idx ? ' open' : '');
+      tr.innerHTML = '<td class="naam-cell">' + esc(naam) + '</td><td>' + col2Html + '</td><td class="jaar-cell tabular">' + esc(jaar) + '</td>';
+      tr.addEventListener('click', function (e) {
+        if (handleEntityLinkClick(e)) return;
+        state.entityOpenRow = state.entityOpenRow === idx ? null : idx;
+        renderEntityWorks(dim, rows);
+      });
+      body.appendChild(tr);
+
+      if (state.entityOpenRow === idx) {
+        var dtr = document.createElement('tr');
+        dtr.className = 'detail-row';
+        dtr.innerHTML = detailPanelTd(row, 3);
+        dtr.addEventListener('click', handleEntityLinkClick);
+        body.appendChild(dtr);
+      }
+    });
+  }
+
+  var entityReqToken = 0;
+
+  function loadEntityPage() {
+    var token = ++entityReqToken;
+    var dim = state.viewDim, id = state.viewId;
+    state.entityOpenRow = null;
+    var def = ENTITY_DIMENSIONS[dim];
+    document.getElementById('entityDim').textContent = def.label;
+    document.getElementById('entityWorksCol2').textContent = def.breakdownDim;
+    document.getElementById('entityName').textContent = dim === 'maker' ? id : '…';
+    document.getElementById('entityMeta').textContent = 'Bezig met laden…';
+    document.getElementById('entityBreakdown').innerHTML = '';
+    document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">Bezig met zoeken…</td></tr>';
+    document.getElementById('entityPrevBtn').disabled = true;
+    document.getElementById('entityNextBtn').disabled = true;
+
+    resolveEntityLabel(dim, id).then(function (label) {
+      if (token !== entityReqToken) return;
+      document.getElementById('entityName').textContent = label;
+    });
+
+    runQuery(buildEntityIdsQuery(dim, id, state.entityOffset)).then(function (idRows) {
+      if (token !== entityReqToken) return null;
+      var ids = idRows.map(function (r) { return r.s.value; });
+      return Promise.all([
+        ids.length ? runQuery(buildDetailQuery(ids)) : Promise.resolve([]),
+        runQuery(buildEntityCountQuery(dim, id)),
+        runQuery(buildEntityBreakdownQuery(dim, id))
+      ]);
+    }).then(function (res) {
+      if (token !== entityReqToken || !res) return;
+      var rows = res[0].map(normalizeDetailRow), countRows = res[1], breakdownRows = res[2];
+      state.lastEntityRows = rows;
+      var total = countRows.length ? parseInt(countRows[0].cnt.value, 10) : 0;
+      document.getElementById('entityMeta').innerHTML = '<b class="tabular">' + total.toLocaleString('nl-NL') + '</b> werken in de Rijkscollectie';
+      document.getElementById('entityBreakdown').innerHTML = breakdownRows.map(function (r) {
+        return '<span class="chip">' + esc(r.bLabel.value) + ' <span class="tabular">' + r.cnt.value + '</span></span>';
+      }).join('');
+      renderEntityWorks(dim, rows);
+      var pageNum = Math.floor(state.entityOffset / PAGE_SIZE) + 1;
+      document.getElementById('entityPageLabel').textContent = 'pagina ' + pageNum;
+      document.getElementById('entityPrevBtn').disabled = state.entityOffset === 0;
+      document.getElementById('entityNextBtn').disabled = state.entityOffset + PAGE_SIZE >= total;
+    }).catch(function (e) {
+      if (token !== entityReqToken) return;
+      document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">' + esc(e.message) + '</td></tr>';
+    });
+  }
+
+  // The dimension + id live in the URL hash (#/entity/<dim>/<id>) so an entity page is
+  // a real, shareable/bookmarkable link -- a small step toward the "every entity is its
+  // own dereferenceable resource" spirit of linked data.
+  function openEntityPage(dim, id, skipHashUpdate) {
+    state.view = 'entity';
+    state.viewDim = dim;
+    state.viewId = id;
+    state.entityOffset = 0;
+    if (!skipHashUpdate) location.hash = '#/entity/' + dim + '/' + encodeURIComponent(id);
+    document.querySelector('.layout').hidden = true;
+    document.getElementById('entityView').hidden = false;
+    loadEntityPage();
+  }
+
+  function closeEntityPage() {
+    state.view = 'browse';
+    state.viewDim = null;
+    state.viewId = null;
+    document.querySelector('.layout').hidden = false;
+    document.getElementById('entityView').hidden = true;
+    if (location.hash) history.pushState('', document.title, location.pathname + location.search);
+  }
+
+  // ---------- data flow ----------
+
+  var reqToken = 0;
+
+  function loadResults() {
+    var token = ++reqToken;
+    renderResultCount(null);
+    document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">Bezig met zoeken&hellip;</td></tr>';
+    document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">Bezig met zoeken&hellip;</div>';
+    ['prevBtnT', 'nextBtnT', 'prevBtnG', 'nextBtnG'].forEach(function (id) { document.getElementById(id).disabled = true; });
+
+    runQuery(buildIdsQuery()).then(function (idRows) {
+      if (token !== reqToken) return [];
+      var ids = idRows.map(function (r) { return r.s.value; });
+      if (!ids.length) return Promise.all([Promise.resolve([]), runQuery(buildCountQuery())]);
+      return Promise.all([runQuery(buildDetailQuery(ids)), runQuery(buildCountQuery())]);
+    }).then(function (res) {
+      if (token !== reqToken || !res) return;
+      var rows = res[0].map(normalizeDetailRow), countRows = res[1];
+      // keep original ORDER BY ?s ordering from the ids query
+      state.lastRows = rows;
+      state.openRow = null;
+      var total = countRows.length ? parseInt(countRows[0].cnt.value, 10) : rows.length;
+      renderResultCount(total);
+      renderTable(rows);
+      renderGallery(rows);
+      var pageNum = Math.floor(state.offset / PAGE_SIZE) + 1;
+      document.getElementById('pageLabelT').textContent = 'pagina ' + pageNum;
+      document.getElementById('pageLabelG').textContent = 'pagina ' + pageNum;
+      var atStart = state.offset === 0, atEnd = state.offset + PAGE_SIZE >= total;
+      document.getElementById('prevBtnT').disabled = atStart;
+      document.getElementById('prevBtnG').disabled = atStart;
+      document.getElementById('nextBtnT').disabled = atEnd;
+      document.getElementById('nextBtnG').disabled = atEnd;
+    }).catch(function (e) {
+      if (token !== reqToken) return;
+      document.getElementById('resultCount').textContent = 'Fout bij ophalen resultaten.';
+      document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">' + esc(e.message) + '</td></tr>';
+      document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">' + esc(e.message) + '</div>';
+    });
+  }
+
+  // ---------- wiring ----------
+
+  var searchTimer = null;
+  document.getElementById('searchInput').addEventListener('input', function (e) {
+    clearTimeout(searchTimer);
+    var val = e.target.value.trim();
+    searchTimer = setTimeout(function () { state.search = val; state.offset = 0; loadResults(); }, 450);
+  });
+
+  wireLiveFacetSearch('makerSearch', 'maker', 'makerList', 'makerSearchResults', renderMakerFacet);
+  wireLiveFacetSearch('materialSearch', 'material', 'materialList', 'materialSearchResults', renderMaterialFacet);
+  wireLiveFacetSearch('locationSearch', 'location', 'locationList', 'locationSearchResults', renderLocationFacet);
+
+  document.getElementById('hasImageToggle').addEventListener('change', function (e) {
+    state.hasImage = e.target.checked;
+    state.offset = 0; state.openRow = null;
+    loadResults();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    facetSearchCancellers.forEach(function (cancel) { cancel(); });
+    state.maker = null; state.genreUri = null; state.materialUri = null; state.locationUri = null;
+    state.periodBucket = null; state.hasImage = false; state.search = '';
+    state.makerSearchResults = null; state.materialSearchResults = null; state.locationSearchResults = null;
+    state.offset = 0;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('makerSearch').value = '';
+    document.getElementById('materialSearch').value = '';
+    document.getElementById('locationSearch').value = '';
+    document.getElementById('hasImageToggle').checked = false;
+    renderMakerFacet(); renderGenreFacet(); renderMaterialFacet(); renderLocationFacet(); renderPeriodChart();
+    loadResults();
+  });
+
+  ['prevBtnT', 'prevBtnG'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () { state.offset = Math.max(0, state.offset - PAGE_SIZE); loadResults(); });
+  });
+  ['nextBtnT', 'nextBtnG'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () { state.offset = state.offset + PAGE_SIZE; loadResults(); });
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.tab = btn.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      document.getElementById('tableView').hidden = state.tab !== 'table';
+      document.getElementById('galleryView').hidden = state.tab !== 'gallery';
+    });
+  });
+
+  document.getElementById('entityBackBtn').addEventListener('click', closeEntityPage);
+  document.getElementById('entityPrevBtn').addEventListener('click', function () { state.entityOffset = Math.max(0, state.entityOffset - PAGE_SIZE); loadEntityPage(); });
+  document.getElementById('entityNextBtn').addEventListener('click', function () { state.entityOffset = state.entityOffset + PAGE_SIZE; loadEntityPage(); });
+
+  var ENTITY_HASH_RE = /^#\/entity\/(maker|genre|material|location)\/(.+)$/;
+  window.addEventListener('hashchange', function () {
+    var m = ENTITY_HASH_RE.exec(location.hash);
+    if (m) { openEntityPage(m[1], decodeURIComponent(m[2]), true); }
+    else if (state.view === 'entity') { closeEntityPage(); }
+  });
+
+  // ---------- boot ----------
+  var initialEntityMatch = ENTITY_HASH_RE.exec(location.hash);
+  if (initialEntityMatch) {
+    openEntityPage(initialEntityMatch[1], decodeURIComponent(initialEntityMatch[2]), true);
+  }
+  loadFacets();
+  loadResults();
+})();
+</script>
+</body>
+</html>
