@@ -44,7 +44,7 @@ npm run deploy
 
 ## Architectuur / waarom een proxy
 
-De Rijkscollectie-endpoint stond aanvankelijk open, maar gaat achter een API-token. Een los HTML-bestand kan geen secret veilig bewaren (zichtbaar via "bekijk paginabron"), dus loopt elke SPARQL-call van de frontend via `runQuery()` in `index.html` naar het same-origin pad `/api/sparql`, dat de Worker (`worker.js`) doorstuurt naar de echte endpoint met het token. De proxy accepteert alleen `SELECT`/`ASK`-queries tot 4000 tekens en weigert SPARQL Update-keywords (INSERT/DELETE/DROP/...) als echte syntax — geciteerde zoektermen die zo'n woord toevallig bevatten worden niet geblokkeerd.
+De Rijkscollectie-endpoint op de LDV staat dicht en achter een API-token. Een los HTML-bestand kan geen secret veilig bewaren (zichtbaar via "bekijk paginabron"), dus loopt elke SPARQL-call van de frontend via `runQuery()` in `index.html` naar het same-origin pad `/api/sparql`, dat de Worker (`worker.js`) doorstuurt naar de echte endpoint met het token. De proxy accepteert alleen `SELECT`/`ASK`-queries tot 4000 tekens en weigert SPARQL Update-keywords (INSERT/DELETE/DROP/...) als echte syntax — geciteerde zoektermen die zo'n woord toevallig bevatten worden niet geblokkeerd.
 
 ## Bekende beperkingen
 
