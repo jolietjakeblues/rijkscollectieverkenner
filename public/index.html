@@ -141,6 +141,11 @@
   }
   .facet-group h2 .count-tag { font-weight: 400; letter-spacing: 0; text-transform: none; }
   .facets-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: -4px 0 2px; }
+  .boot-notice {
+    background: var(--grey-soft); border: 1px solid var(--border);
+    border-left: 3px solid var(--brick); border-radius: 0 3px 3px 0;
+    padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px;
+  }
 
   input[type="search"], input[type="text"] {
     width: 100%;
@@ -272,6 +277,11 @@
   tbody tr.row:hover { background: var(--grey-soft); }
   tbody tr.row.open { background: var(--gold-soft); }
   .naam-cell { font-weight: 500; }
+  .row-toggle {
+    background: none; border: none; padding: 0; margin: 0; font: inherit; font-weight: 500;
+    color: var(--ink); text-align: left; cursor: pointer; width: 100%;
+  }
+  .row-toggle:hover { color: var(--gold); }
   .jaar-cell { font-family: var(--font-mono); white-space: nowrap; }
 
   tr.detail-row td { background: var(--paper); padding: 16px; }
@@ -311,6 +321,13 @@
     padding: 3px 5px; border-radius: 3px;
     text-decoration: none;
   }
+  .media-retry {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(12,10,6,0.75); color: #f5ecd0;
+    border: none; border-radius: 3px; width: 20px; height: 20px;
+    font-size: 13px; line-height: 1; cursor: pointer;
+  }
+  .media-retry:hover { background: var(--brick); }
   .thumb-fallback {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 4px; width: 100%; height: 100%; color: var(--muted); text-decoration: none;
@@ -382,6 +399,8 @@
     <strong>De meeste werken en afbeeldingen zijn auteursrechtelijk beschermd</strong> &mdash; de rechtenvermelding
     staat bij elk werk (klik een regel open) en op elke thumbnail (&copy;-icoontje).
   </p>
+
+  <div class="boot-notice" id="bootNotice" hidden></div>
 
   <div class="layout">
 
@@ -771,10 +790,16 @@
       '  (SAMPLE(?temporal) AS ?temporalL) (SAMPLE(?mediaPacked) AS ?mediaPackedL)',
       '  (SAMPLE(?license) AS ?licenseL) (SAMPLE(?holderName) AS ?holderNameL)',
       '  (SAMPLE(?desc) AS ?descL) (SAMPLE(?url) AS ?urlL) (SAMPLE(?size) AS ?sizeL) (SAMPLE(?docNr) AS ?docNrL)',
+      '  (GROUP_CONCAT(DISTINCT ?whatLabel; separator=", ") AS ?whatL)',
       'WHERE {',
       '  ' + valuesClause(ids),
       '  OPTIONAL { ?s schema:name ?name . }', // some works genuinely have no title -- must stay optional or they vanish from this query despite being counted
       '  OPTIONAL { ?s schema:creator ?creator . ?creator schema:name ?creatorLabel . }',
+      // schema:additionalType ("Wat" on Beeldbank, e.g. "keramiek, miniatuur, vaas") is
+      // genuinely multi-valued -- GROUP_CONCAT(DISTINCT ...) collects every value rather
+      // than SAMPLE()'s arbitrary one, since there's no correlated partner field here that
+      // would need the pack-and-split treatment used for genre/materiaal/locatie/media.
+      '  OPTIONAL { ?s schema:additionalType ?whatObj . ?whatObj schema:name ?whatLabel . }',
       // schema:size is multi-valued: usually one human-readable literal ("hoogte: 6.5 cm\n...")
       // plus separate structured schema:QuantitativeValue resources for the same
       // measurements -- filter to the literal to match what Beeldbank itself shows.
@@ -1020,7 +1045,10 @@
     var filters = [];
     if (state.maker) filters.push(state.maker);
     if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; if (g) filters.push(g.label); }
-    if (state.materialUri) { var m = state.materialOptions.filter(function (o) { return o.id === state.materialUri; })[0]; if (m) filters.push(m.label); }
+    if (state.materialUri) {
+      var m = (state.materialSearchResults || state.materialOptions).filter(function (o) { return o.id === state.materialUri; })[0];
+      filters.push(m ? m.label : 'materiaal');
+    }
     if (state.locationUri) {
       var l = (state.locationSearchResults || state.locationOptions).filter(function (o) { return o.id === state.locationUri; })[0];
       filters.push(l ? l.label : 'locatie');
@@ -1067,6 +1095,13 @@
   // currently showing it once it lands -- the main table, or an entity page's own list
   // (they're separate row arrays/render functions, so re-rendering the wrong one left an
   // entity page's extra images never appearing until some unrelated re-render happened).
+  //
+  // A network failure is cached as the string 'error', NOT as an empty array -- an empty
+  // array means "this work genuinely has no media" and is a legitimate, permanent answer;
+  // collapsing a failed request into that same state made a network hiccup indistinguishable
+  // from "no images", made it permanent (the `!== undefined` guard never re-fetched), and
+  // discarded the row's own already-known sample thumbnail. 'error' instead falls back to
+  // that existing sample (like 'loading' already did) and offers an explicit retry.
   function ensureMediaLoaded(workUri) {
     if (state.mediaCache[workUri] !== undefined) return;
     state.mediaCache[workUri] = 'loading';
@@ -1076,7 +1111,26 @@
       });
       if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
       else renderTable(state.lastRows);
-    }).catch(function () { state.mediaCache[workUri] = []; });
+    }).catch(function () {
+      state.mediaCache[workUri] = 'error';
+      if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
+      else renderTable(state.lastRows);
+    });
+  }
+
+  // Explicit, user-triggered retry (never automatic -- an automatic retry from inside the
+  // error branch's own re-render would just refire the same failing request every render).
+  function retryMediaLoad(workUri) {
+    delete state.mediaCache[workUri];
+    if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
+    else renderTable(state.lastRows);
+  }
+  function handleMediaRetryClick(e) {
+    var el = e.target.closest('.media-retry');
+    if (!el) return false;
+    e.stopPropagation();
+    retryMediaLoad(el.getAttribute('data-work'));
+    return true;
   }
 
   function mediaAreaHtml(row, sampleThumb, sampleLicense, beeldbank) {
@@ -1084,6 +1138,10 @@
     if (cached === undefined) { ensureMediaLoaded(row.s.value); cached = 'loading'; }
     if (cached === 'loading') {
       return '<div class="detail-thumb">' + thumbHtml(sampleThumb, sampleLicense, beeldbank) + '</div>';
+    }
+    if (cached === 'error') {
+      return '<div class="detail-thumb">' + thumbHtml(sampleThumb, sampleLicense, beeldbank) +
+        '<button type="button" class="media-retry" data-work="' + esc(row.s.value) + '" title="Ophalen afbeeldingen mislukt -- opnieuw proberen">&#8635;</button></div>';
     }
     if (!cached.length) {
       return '<div class="detail-thumb">' + thumbHtml(null, null, beeldbank) + '</div>';
@@ -1125,6 +1183,23 @@
     });
   }
 
+  // Opening/closing a row's detail rebuilds the whole table from scratch (see renderTable),
+  // which throws away and recreates every DOM node -- including whichever one had keyboard
+  // focus, silently dropping the user back to nowhere. Captured before, restored after: the
+  // button for the SAME row index gets focus back, so toggling a row keeps you on it.
+  function captureFocusedRowIdx(container, btnClass) {
+    var active = document.activeElement;
+    if (active && container.contains(active) && active.classList.contains(btnClass)) {
+      return active.getAttribute('data-row-idx');
+    }
+    return null;
+  }
+  function restoreFocusedRowIdx(container, btnClass, idx) {
+    if (idx === null) return;
+    var btn = container.querySelector('.' + btnClass + '[data-row-idx="' + idx + '"]');
+    if (btn) btn.focus();
+  }
+
   // Shared expandable detail panel (image(s), rights, description, cross-linked
   // genre/materiaal/maker) used by both the main results table and an entity page's own
   // work list, so a title never has to leave the app just to see what it's a picture of.
@@ -1146,6 +1221,7 @@
     var beeldbank = row.urlL ? row.urlL.value : null;
     var size = row.sizeL ? row.sizeL.value.replace(/\s*\n\s*/g, ' · ').trim() : null;
     var docNr = row.docNrL ? row.docNrL.value : null;
+    var what = row.whatL && row.whatL.value ? row.whatL.value : null; // GROUP_CONCAT binds "" (not unbound) when there's nothing to concat
     return '<td colspan="' + colspan + '"><div class="detail-flex">' +
       mediaAreaHtml(row, mediaThumb, mediaLicense, beeldbank) +
       '<div class="detail-body">' +
@@ -1161,6 +1237,7 @@
           '<div><dt>Genre</dt><dd>' + entityLinkHtml('genre', genreUri, genre) + '</dd></div>' +
           '<div><dt>Materiaal</dt><dd>' + (material ? entityLinkHtml('material', materialUri, material) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>Locatie</dt><dd>' + (location ? entityLinkHtml('location', locationUri, location) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
+          '<div><dt>Wat</dt><dd>' + (what ? esc(what) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>Afmetingen</dt><dd>' + (size ? esc(size) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>Documentnummer</dt><dd>' + (docNr ? '<span class="tabular">' + esc(docNr) + '</span>' : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>CHO-URI</dt><dd style="font-family:var(--font-mono);font-size:10.5px;word-break:break-all;"><a href="' + esc(row.s.value) + '" target="_blank" rel="noopener">' + esc(localId(row.s.value)) + '</a></dd></div>' +
@@ -1172,6 +1249,7 @@
 
   function renderTable(rows) {
     var body = document.getElementById('resultsBody');
+    var focusedIdx = captureFocusedRowIdx(body, 'row-toggle');
     body.innerHTML = '';
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="4" class="state-msg">Geen resultaten voor deze combinatie van filters.</td></tr>';
@@ -1185,29 +1263,30 @@
       var jaar = row.temporalL ? row.temporalL.value : '—';
       var tr = document.createElement('tr');
       tr.className = 'row' + (state.openRow === idx ? ' open' : '');
+      // The title is a real <button> (natively focusable, Enter/Space work with no extra
+      // JS) rather than the whole <tr> faking button semantics -- a real interactive
+      // control in the cell that names the action, not a giant ambiguous click target.
       tr.innerHTML =
-        '<td class="naam-cell">' + esc(naam) + '</td>' +
+        '<td class="naam-cell"><button type="button" class="row-toggle" data-row-idx="' + idx + '" aria-expanded="' + (state.openRow === idx ? 'true' : 'false') + '">' + esc(naam) + '</button></td>' +
         '<td>' + entityLinkHtml('maker', maker, maker) + '</td>' +
         '<td>' + entityLinkHtml('genre', genreUri, genre) + '</td>' +
         '<td class="jaar-cell tabular">' + esc(jaar) + '</td>';
-      var toggleRow = function (e) {
+      tr.addEventListener('click', function (e) { // the button's click bubbles here too, so this covers mouse-anywhere-in-row AND keyboard
         if (handleEntityLinkClick(e)) return;
         state.openRow = state.openRow === idx ? null : idx;
         renderTable(rows);
-      };
-      tr.addEventListener('click', toggleRow);
-      tr.setAttribute('aria-expanded', state.openRow === idx ? 'true' : 'false');
-      wireActivation(tr, 'button', toggleRow);
+      });
       body.appendChild(tr);
 
       if (state.openRow === idx) {
         var dtr = document.createElement('tr');
         dtr.className = 'detail-row';
         dtr.innerHTML = detailPanelTd(row, 4);
-        dtr.addEventListener('click', handleEntityLinkClick);
+        dtr.addEventListener('click', function (e) { handleEntityLinkClick(e) || handleMediaRetryClick(e); });
         body.appendChild(dtr);
       }
     });
+    restoreFocusedRowIdx(body, 'row-toggle', focusedIdx);
   }
 
   function renderGallery(rows) {
@@ -1241,6 +1320,7 @@
 
   function renderEntityWorks(dim, rows) {
     var body = document.getElementById('entityWorksBody');
+    var focusedIdx = captureFocusedRowIdx(body, 'row-toggle');
     body.innerHTML = '';
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="3" class="state-msg">Geen werken gevonden.</td></tr>';
@@ -1253,25 +1333,23 @@
       var col2Html = entityLinkHtml(col2.dim, col2.id, col2.label);
       var tr = document.createElement('tr');
       tr.className = 'row' + (state.entityOpenRow === idx ? ' open' : '');
-      tr.innerHTML = '<td class="naam-cell">' + esc(naam) + '</td><td>' + col2Html + '</td><td class="jaar-cell tabular">' + esc(jaar) + '</td>';
-      var toggleEntityRow = function (e) {
+      tr.innerHTML = '<td class="naam-cell"><button type="button" class="row-toggle" data-row-idx="' + idx + '" aria-expanded="' + (state.entityOpenRow === idx ? 'true' : 'false') + '">' + esc(naam) + '</button></td><td>' + col2Html + '</td><td class="jaar-cell tabular">' + esc(jaar) + '</td>';
+      tr.addEventListener('click', function (e) {
         if (handleEntityLinkClick(e)) return;
         state.entityOpenRow = state.entityOpenRow === idx ? null : idx;
         renderEntityWorks(dim, rows);
-      };
-      tr.addEventListener('click', toggleEntityRow);
-      tr.setAttribute('aria-expanded', state.entityOpenRow === idx ? 'true' : 'false');
-      wireActivation(tr, 'button', toggleEntityRow);
+      });
       body.appendChild(tr);
 
       if (state.entityOpenRow === idx) {
         var dtr = document.createElement('tr');
         dtr.className = 'detail-row';
         dtr.innerHTML = detailPanelTd(row, 3);
-        dtr.addEventListener('click', handleEntityLinkClick);
+        dtr.addEventListener('click', function (e) { handleEntityLinkClick(e) || handleMediaRetryClick(e); });
         body.appendChild(dtr);
       }
     });
+    restoreFocusedRowIdx(body, 'row-toggle', focusedIdx);
   }
 
   var entityReqToken = 0;
@@ -1451,17 +1529,39 @@
   document.getElementById('entityPrevBtn').addEventListener('click', function () { state.entityOffset = Math.max(0, state.entityOffset - PAGE_SIZE); loadEntityPage(); });
   document.getElementById('entityNextBtn').addEventListener('click', function () { state.entityOffset = state.entityOffset + PAGE_SIZE; loadEntityPage(); });
 
+  // decodeURIComponent() throws on malformed percent-encoding (e.g. a lone "%" in the
+  // hash). Unguarded, that throw happened at the top level of an event handler and of the
+  // boot script itself -- in boot, an uncaught throw there aborted the rest of the
+  // synchronous script, so loadFacets()/loadResults() right after it never ran and the
+  // whole app stayed blank for a visitor who just had a malformed link.
+  function safeDecodeEntityId(raw) {
+    try { return decodeURIComponent(raw); } catch (e) { return null; }
+  }
+  function showBootNotice(message) {
+    var el = document.getElementById('bootNotice');
+    el.textContent = message;
+    el.hidden = false;
+  }
+  function dropInvalidEntityHash() {
+    if (location.hash) history.replaceState('', document.title, location.pathname + location.search);
+    showBootNotice('Deze link kon niet worden geopend (ongeldige waarde) — je ziet nu het gewone zoekscherm.');
+  }
+
   var ENTITY_HASH_RE = /^#\/entity\/(maker|genre|material|location)\/(.+)$/;
   window.addEventListener('hashchange', function () {
     var m = ENTITY_HASH_RE.exec(location.hash);
-    if (m) { openEntityPage(m[1], decodeURIComponent(m[2]), true); }
-    else if (state.view === 'entity') { closeEntityPage(); }
+    if (!m) { if (state.view === 'entity') closeEntityPage(); return; }
+    var decodedId = safeDecodeEntityId(m[2]);
+    if (decodedId === null) { dropInvalidEntityHash(); if (state.view === 'entity') closeEntityPage(); return; }
+    openEntityPage(m[1], decodedId, true);
   });
 
   // ---------- boot ----------
   var initialEntityMatch = ENTITY_HASH_RE.exec(location.hash);
   if (initialEntityMatch) {
-    openEntityPage(initialEntityMatch[1], decodeURIComponent(initialEntityMatch[2]), true);
+    var initialDecodedId = safeDecodeEntityId(initialEntityMatch[2]);
+    if (initialDecodedId === null) dropInvalidEntityHash();
+    else openEntityPage(initialEntityMatch[1], initialDecodedId, true);
   }
   loadFacets();
   loadResults();
