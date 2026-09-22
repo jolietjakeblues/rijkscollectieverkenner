@@ -140,7 +140,16 @@
     justify-content: space-between;
   }
   .facet-group h2 .count-tag { font-weight: 400; letter-spacing: 0; text-transform: none; }
-  .facets-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: -4px 0 2px; }
+  .help-bar {
+    display: flex; flex-wrap: wrap; gap: 10px 28px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+    padding: 12px 16px; margin-bottom: 16px;
+  }
+  .help-tip { flex: 1 1 220px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .help-label {
+    display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 2px;
+  }
   .boot-notice {
     background: var(--grey-soft); border: 1px solid var(--border);
     border-left: 3px solid var(--brick); border-radius: 0 3px 3px 0;
@@ -402,11 +411,15 @@
 
   <div class="boot-notice" id="bootNotice" hidden></div>
 
+  <div class="help-bar">
+    <div class="help-tip"><span class="help-label">Doorklikken</span>Maker, genre, materiaal en locatie in de resultaten zijn klikbaar &mdash; dat opent een eigen pagina met alle werken binnen die waarde.</div>
+    <div class="help-tip"><span class="help-label">Facetaantallen</span>Zijn collectiebreed en veranderen niet mee met je huidige filters &mdash; sommige combinaties kunnen dus 0 resultaten geven.</div>
+    <div class="help-tip"><span class="help-label">Rechten</span>Elk werk en elke afbeelding heeft een eigen rechtenvermelding (klik een regel open, of zie het &copy;-icoontje op een thumbnail).</div>
+  </div>
+
   <div class="layout">
 
     <aside class="panel facets">
-
-      <p class="facets-note">Aantallen bij facetten zijn collectiebreed en veranderen niet mee met je huidige filters &mdash; sommige combinaties kunnen dus 0 resultaten geven.</p>
 
       <div class="facet-group">
         <h2>Zoek op titel</h2>
