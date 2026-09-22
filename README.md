@@ -52,5 +52,6 @@ De Rijkscollectie-endpoint op de LDV staat dicht en achter een API-token. Een lo
 - **Makers zijn niet gededupliceerd tot één persoonsidentiteit.** `schema:creator`-nodes krijgen een eigen URI per werk, ook voor dezelfde echte persoon (bv. tientallen losse "Gestel, Leo"-URI's). Makerpagina's groeperen daarom op de letterlijke naamstring, niet op een betrouwbare persoons-ID; naamgenoten vallen samen, schrijfvarianten blijven gescheiden.
 - **Facetaantallen zijn collectiebreed**, niet herberekend binnen de huidige filterselectie (staat ook zo in de UI vermeld); sommige facetcombinaties kunnen dus 0 resultaten opleveren ondanks een aantal > 0.
 
-Gebaseerd op: [Sampo-UI](https://seco.cs.aalto.fi/tools/sampo-ui/) [SemanticComputing sampo-ui](https://github.com/SemanticComputing/sampo-ui)
+Gebaseerd op: [Sampo-UI](https://seco.cs.aalto.fi/tools/sampo-ui/)
+              [SemanticComputing sampo-ui](https://github.com/SemanticComputing/sampo-ui)
 
