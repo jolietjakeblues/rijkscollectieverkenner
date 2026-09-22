@@ -1107,6 +1107,24 @@
     return true;
   }
 
+  // Table rows and gallery cards only had a click handler -- keyboard-only users (and
+  // screen readers) couldn't open a work's detail at all. Makes an element a real
+  // keyboard-operable control: focusable, announced with the right role, and Enter/Space
+  // trigger the same handler as a click. Nested real <button> elements (.entity-link)
+  // stay independently focusable/clickable as before; this only adds the ROW's own
+  // activation, which was missing entirely.
+  function wireActivation(el, role, onActivate) {
+    el.tabIndex = 0;
+    el.setAttribute('role', role);
+    el.addEventListener('keydown', function (e) {
+      if (e.target !== el) return; // let a nested focusable element (e.g. .entity-link) handle its own Enter/Space
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onActivate(e);
+      }
+    });
+  }
+
   // Shared expandable detail panel (image(s), rights, description, cross-linked
   // genre/materiaal/maker) used by both the main results table and an entity page's own
   // work list, so a title never has to leave the app just to see what it's a picture of.
@@ -1172,11 +1190,14 @@
         '<td>' + entityLinkHtml('maker', maker, maker) + '</td>' +
         '<td>' + entityLinkHtml('genre', genreUri, genre) + '</td>' +
         '<td class="jaar-cell tabular">' + esc(jaar) + '</td>';
-      tr.addEventListener('click', function (e) {
+      var toggleRow = function (e) {
         if (handleEntityLinkClick(e)) return;
         state.openRow = state.openRow === idx ? null : idx;
         renderTable(rows);
-      });
+      };
+      tr.addEventListener('click', toggleRow);
+      tr.setAttribute('aria-expanded', state.openRow === idx ? 'true' : 'false');
+      wireActivation(tr, 'button', toggleRow);
       body.appendChild(tr);
 
       if (state.openRow === idx) {
@@ -1206,10 +1227,12 @@
         '<div class="card-body"><p class="card-title">' + esc(naam) + '</p><p class="card-sub">' +
         entityLinkHtml('maker', maker, maker) +
         '</p></div>';
-      card.addEventListener('click', function (e) {
+      var openCard = function (e) {
         if (handleEntityLinkClick(e)) return;
         window.open(row.s.value, '_blank', 'noopener');
-      });
+      };
+      card.addEventListener('click', openCard);
+      wireActivation(card, 'link', openCard);
       grid.appendChild(card);
     });
   }
@@ -1231,11 +1254,14 @@
       var tr = document.createElement('tr');
       tr.className = 'row' + (state.entityOpenRow === idx ? ' open' : '');
       tr.innerHTML = '<td class="naam-cell">' + esc(naam) + '</td><td>' + col2Html + '</td><td class="jaar-cell tabular">' + esc(jaar) + '</td>';
-      tr.addEventListener('click', function (e) {
+      var toggleEntityRow = function (e) {
         if (handleEntityLinkClick(e)) return;
         state.entityOpenRow = state.entityOpenRow === idx ? null : idx;
         renderEntityWorks(dim, rows);
-      });
+      };
+      tr.addEventListener('click', toggleEntityRow);
+      tr.setAttribute('aria-expanded', state.entityOpenRow === idx ? 'true' : 'false');
+      wireActivation(tr, 'button', toggleEntityRow);
       body.appendChild(tr);
 
       if (state.entityOpenRow === idx) {
@@ -1301,14 +1327,22 @@
   // a real, shareable/bookmarkable link -- a small step toward the "every entity is its
   // own dereferenceable resource" spirit of linked data.
   function openEntityPage(dim, id, skipHashUpdate) {
+    var targetHash = '#/entity/' + dim + '/' + encodeURIComponent(id);
     state.view = 'entity';
     state.viewDim = dim;
     state.viewId = id;
     state.entityOffset = 0;
-    if (!skipHashUpdate) location.hash = '#/entity/' + dim + '/' + encodeURIComponent(id);
     document.querySelector('.layout').hidden = true;
     document.getElementById('entityView').hidden = false;
-    loadEntityPage();
+    // Setting location.hash fires 'hashchange', whose listener calls openEntityPage(...,
+    // true) again -- loading here too would fetch everything twice per click. Let that
+    // event be the one call to loadEntityPage(); only load directly when there's no hash
+    // change to wait for (already on this hash, or called *from* the hashchange handler).
+    if (!skipHashUpdate && location.hash !== targetHash) {
+      location.hash = targetHash;
+    } else {
+      loadEntityPage();
+    }
   }
 
   function closeEntityPage() {
@@ -1382,6 +1416,7 @@
   });
 
   document.getElementById('resetBtn').addEventListener('click', function () {
+    clearTimeout(searchTimer); // a just-typed title search was otherwise still pending and would reappear ~450ms after reset
     facetSearchCancellers.forEach(function (cancel) { cancel(); });
     state.maker = null; state.genreUri = null; state.materialUri = null; state.locationUri = null;
     state.periodBucket = null; state.hasImage = false; state.search = '';
