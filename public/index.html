@@ -1102,19 +1102,36 @@
   // from "no images", made it permanent (the `!== undefined` guard never re-fetched), and
   // discarded the row's own already-known sample thumbnail. 'error' instead falls back to
   // that existing sample (like 'loading' already did) and offers an explicit retry.
+  // A media fetch can still be in flight when the user opens a work, then immediately
+  // changes a filter or navigates to a different entity page -- state.lastRows /
+  // state.lastEntityRows get replaced by the new search's results, but this fetch's own
+  // .then()/.catch() had no way to know that and re-rendered from whatever state.lastRows
+  // held *at the moment it resolved*, which could by then be the NEW result set (fine) or,
+  // if the new search was itself still pending, the OLD one -- redrawing stale works under
+  // filters that no longer match them. Tying it to the reqToken/entityReqToken that was
+  // current when the fetch started (the same staleness guard loadResults/loadEntityPage
+  // already use for themselves) makes a superseded fetch's render a no-op instead.
+  function rerenderIfStillCurrent(viewAtRequest, tokenAtRequest) {
+    if (viewAtRequest === 'entity') {
+      if (state.view === 'entity' && entityReqToken === tokenAtRequest) renderEntityWorks(state.viewDim, state.lastEntityRows);
+    } else {
+      if (state.view !== 'entity' && reqToken === tokenAtRequest) renderTable(state.lastRows);
+    }
+  }
+
   function ensureMediaLoaded(workUri) {
     if (state.mediaCache[workUri] !== undefined) return;
     state.mediaCache[workUri] = 'loading';
+    var viewAtRequest = state.view;
+    var tokenAtRequest = viewAtRequest === 'entity' ? entityReqToken : reqToken;
     runQuery(buildAllMediaQuery(workUri)).then(function (rows) {
       state.mediaCache[workUri] = rows.map(function (r) {
         return { thumb: r.thumb.value, license: r.licenseL ? r.licenseL.value : null };
       });
-      if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
-      else renderTable(state.lastRows);
+      rerenderIfStillCurrent(viewAtRequest, tokenAtRequest);
     }).catch(function () {
       state.mediaCache[workUri] = 'error';
-      if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
-      else renderTable(state.lastRows);
+      rerenderIfStillCurrent(viewAtRequest, tokenAtRequest);
     });
   }
 
@@ -1122,8 +1139,10 @@
   // error branch's own re-render would just refire the same failing request every render).
   function retryMediaLoad(workUri) {
     delete state.mediaCache[workUri];
-    if (state.view === 'entity') renderEntityWorks(state.viewDim, state.lastEntityRows);
-    else renderTable(state.lastRows);
+    // Synchronous click handler, no async gap -- state.view/reqToken can't have changed
+    // since this ran, so the re-render always happens; its own mediaAreaHtml call is what
+    // re-triggers ensureMediaLoaded() (cache entry is gone, so the `undefined` branch fires).
+    rerenderIfStillCurrent(state.view, state.view === 'entity' ? entityReqToken : reqToken);
   }
   function handleMediaRetryClick(e) {
     var el = e.target.closest('.media-retry');
@@ -1371,6 +1390,9 @@
     resolveEntityLabel(dim, id).then(function (label) {
       if (token !== entityReqToken) return;
       document.getElementById('entityName').textContent = label;
+    }).catch(function () {
+      if (token !== entityReqToken) return;
+      document.getElementById('entityName').textContent = id; // label lookup failed -- show the raw URI rather than leaving "…" stuck forever
     });
 
     runQuery(buildEntityIdsQuery(dim, id, state.entityOffset)).then(function (idRows) {
