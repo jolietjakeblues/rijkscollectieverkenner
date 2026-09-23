@@ -22,9 +22,9 @@ npx wrangler secret put RCE_TOKEN
 npx wrangler secret put SITE_USER
 npx wrangler secret put SITE_PASSWORD
 ```
-(plak de waarde als er om gevraagd wordt — komt nergens in een bestand terecht)
+(plak de waarde als er om gevraagd wordt; komt nergens in een bestand terecht)
 
-`SITE_USER`/`SITE_PASSWORD` zetten een simpele HTTP Basic Auth-login voor de hele site (zowel de pagina als `/api/sparql`) — geen account- of sessiesysteem, gewoon één gebruikersnaam/wachtwoord dat de browser opvraagt. Over HTTPS is dat verkeer gewoon TLS-versleuteld (Basic Auth is *geen* onversleuteld protocol — zie [RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)); wat er wél ontbreekt is lockout/backoff na foutieve pogingen, sessieverval en per-gebruiker herroepbaarheid. Het is een "houd dit prototype uit toevallig zoek-/crawlverkeer"-gate, geen vervanging voor echte toegangscontrole.
+`SITE_USER`/`SITE_PASSWORD` zetten een simpele HTTP Basic Auth-login voor de hele site (zowel de pagina als `/api/sparql`); geen account- of sessiesysteem, gewoon één gebruikersnaam/wachtwoord dat de browser opvraagt. Over HTTPS is dat verkeer gewoon TLS-versleuteld (Basic Auth is *geen* onversleuteld protocol; zie [RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)); wat er wél ontbreekt is lockout/backoff na foutieve pogingen, sessieverval en per-gebruiker herroepbaarheid. Het is een "houd dit prototype uit toevallig zoek-/crawlverkeer"-gate, geen vervanging voor echte toegangscontrole.
 
 ## Lokaal draaien
 
@@ -32,9 +32,9 @@ npx wrangler secret put SITE_PASSWORD
 npm run dev
 ```
 
-Dit start `wrangler dev`, dat zowel `public/` serveert als de `/api/sparql`-proxy draait (met het token uit `wrangler secret put`, of lokaal override via een `.dev.vars`-bestand met `RCE_TOKEN=...` — nooit committen, staat al in `.gitignore`).
+Dit start `wrangler dev`, dat zowel `public/` serveert als de `/api/sparql`-proxy draait (met het token uit `wrangler secret put`, of lokaal override via een `.dev.vars`-bestand met `RCE_TOKEN=...`; nooit committen, staat al in `.gitignore`).
 
-Let op: `public/index.html` los openen (dubbelklikken) of via `python -m http.server` werkt niet meer voor live data, want `/api/sparql` bestaat dan niet — dat pad wordt alleen door de Worker bediend.
+Let op: `public/index.html` los openen (dubbelklikken) of via `python -m http.server` werkt niet meer voor live data, want `/api/sparql` bestaat dan niet; dat pad wordt alleen door de Worker bediend.
 
 ## Deployen
 
@@ -44,7 +44,7 @@ npm run deploy
 
 ## Architectuur / waarom een proxy
 
-De Rijkscollectie-endpoint stond aanvankelijk open, maar gaat achter een API-token. Een los HTML-bestand kan geen secret veilig bewaren (zichtbaar via "bekijk paginabron"), dus loopt elke SPARQL-call van de frontend via `runQuery()` in `index.html` naar het same-origin pad `/api/sparql`, dat de Worker (`worker.js`) doorstuurt naar de echte endpoint met het token. De proxy accepteert alleen `SELECT`/`ASK`-queries tot 4000 tekens en weigert SPARQL Update-keywords (INSERT/DELETE/DROP/...) als echte syntax — geciteerde zoektermen die zo'n woord toevallig bevatten worden niet geblokkeerd.
+De Rijkscollectie-endpoint op de LDV staat dicht en achter een API-token. Een los HTML-bestand kan geen secret veilig bewaren (zichtbaar via "bekijk paginabron"), dus loopt elke SPARQL-call van de frontend via `runQuery()` in `index.html` naar het same-origin pad `/api/sparql`, dat de Worker (`worker.js`) doorstuurt naar de echte endpoint met het token. De proxy accepteert alleen `SELECT`/`ASK`-queries tot 4000 tekens en weigert SPARQL Update-keywords (INSERT/DELETE/DROP/...) als echte syntax; geciteerde zoektermen die zo'n woord toevallig bevatten worden niet geblokkeerd.
 
 ## Bekende beperkingen
 
