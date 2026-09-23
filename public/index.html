@@ -199,10 +199,39 @@
   .period-bar:hover .bar { background: var(--gold); }
   .period-bar.active .bar { background: var(--brick); }
   .period-bar .lbl { font-family: var(--font-mono); font-size: 8px; color: var(--muted); text-align: center; line-height: 1.15; }
+  .year-range { display: flex; align-items: center; gap: 5px; margin-top: 10px; }
+  .year-range input {
+    width: 0; flex: 1 1 0; min-width: 0; font-family: var(--font-mono); font-size: 12px;
+    padding: 5px 6px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--paper); color: var(--ink);
+  }
+  .year-range span { color: var(--muted); font-size: 11px; }
+  .year-range button {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.03em;
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 5px 8px; color: var(--muted); cursor: pointer; white-space: nowrap;
+  }
+  .year-range button:hover { border-color: var(--gold); color: var(--gold); }
   .period-bar.active .lbl { color: var(--brick); }
 
   .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
   .toggle-row input { accent-color: var(--brick); width: 15px; height: 15px; cursor: pointer; }
+
+  .analysis-note { font-size: 12px; color: var(--muted); margin: 2px 0 18px; }
+  .analysis-chart { display: flex; align-items: flex-end; gap: 16px; height: 240px; padding: 0 4px; }
+  .analysis-bar {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    height: 100%; gap: 6px;
+  }
+  .analysis-bar .stack {
+    width: 100%; display: flex; flex-direction: column; border-radius: 2px 2px 0 0;
+    overflow: hidden; min-height: 2px;
+  }
+  .analysis-bar .seg { width: 100%; flex: 1 1 0; min-height: 0; }
+  .analysis-bar .seg:hover { filter: brightness(1.15); }
+  .analysis-bar .lbl { font-family: var(--font-mono); font-size: 8px; color: var(--muted); text-align: center; line-height: 1.15; }
+  .analysis-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 16px; font-size: 11.5px; color: var(--muted); }
+  .analysis-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 
   .reset-btn {
     font-family: var(--font-mono);
@@ -233,6 +262,8 @@
   .back-btn:hover { border-color: var(--gold); color: var(--gold); }
   .entity-header h2 { font-family: var(--font-display); font-size: 20px; margin: 0 0 4px; }
   .entity-meta { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+  .entity-bio { font-size: 12.5px; color: var(--muted); margin: -6px 0 10px; }
+  .entity-bio a { color: var(--gold); }
   .entity-breakdown { display: flex; flex-wrap: wrap; gap: 6px; }
   .entity-breakdown .chip {
     font-family: var(--font-mono); font-size: 10.5px; background: var(--grey-soft);
@@ -244,7 +275,19 @@
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; }
   .result-count { font-size: 13px; }
   .result-count b { font-family: var(--font-mono); font-weight: 500; }
-  .active-filters { font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); }
+
+  .active-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--gold-soft); border: 1px solid var(--border);
+    border-radius: 20px; padding: 3px 5px 3px 10px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink);
+  }
+  .filter-chip button {
+    background: none; border: none; padding: 2px; margin: 0; cursor: pointer;
+    color: var(--muted); font: inherit; font-size: 13px; line-height: 1; border-radius: 50%;
+  }
+  .filter-chip button:hover { color: var(--brick); background: var(--surface); }
 
   .tabs { display: flex; gap: 2px; }
   .tab-btn {
@@ -429,6 +472,12 @@
       <div class="facet-group">
         <h2>Periode</h2>
         <div class="period-chart" id="periodChart"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <div class="year-range">
+          <input type="number" id="yearFromInput" placeholder="van" inputmode="numeric">
+          <span>&ndash;</span>
+          <input type="number" id="yearToInput" placeholder="tot" inputmode="numeric">
+          <button type="button" id="yearRangeApply">Toepassen</button>
+        </div>
       </div>
 
       <div class="facet-group">
@@ -471,8 +520,11 @@
         <div class="tabs">
           <button class="tab-btn active" data-tab="table" type="button">Tabel</button>
           <button class="tab-btn" data-tab="gallery" type="button">Galerij</button>
+          <button class="tab-btn" data-tab="analysis" type="button">Analyse</button>
         </div>
       </div>
+
+      <div class="active-chips" id="activeChips" hidden></div>
 
       <div class="panel content-panel" id="tableView">
         <div class="table-scroll">
@@ -499,6 +551,12 @@
         </div>
       </div>
 
+      <div class="panel content-panel" id="analysisView" hidden>
+        <p class="analysis-note">Genre &times; periode, over de hele collectie (niet beperkt tot de huidige filters).</p>
+        <div class="analysis-chart" id="analysisChart"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <div class="analysis-legend" id="analysisLegend"></div>
+      </div>
+
     </section>
   </div>
 
@@ -508,6 +566,7 @@
       <span class="eyebrow" id="entityDim"></span>
       <h2 id="entityName"></h2>
       <p class="entity-meta" id="entityMeta"></p>
+      <p class="entity-bio" id="entityBio" hidden></p>
       <div class="entity-breakdown" id="entityBreakdown"></div>
     </div>
     <div class="table-scroll">
@@ -558,6 +617,8 @@
     materialUri: null,
     locationUri: null,
     periodBucket: null, // PERIOD_BUCKETS id, or null
+    yearFrom: null, // integer or null -- combinable WITH periodBucket, not exclusive (see innerWhere)
+    yearTo: null,
     hasImage: false,
     search: '',
     offset: 0,
@@ -571,6 +632,7 @@
     materialSearchResults: null,
     locationSearchResults: null,
     periodCounts: null,
+    analysisData: null, // null = not yet loaded; array of {genreLabel, bucket, cnt} once fetched (lazy, on first Analyse-tab visit)
     mediaCache: {},
     lastRows: [],
     lastEntityRows: [],
@@ -616,13 +678,21 @@
     if (state.materialUri) lines.push('?s schema:material <' + state.materialUri + '> .');
     if (state.locationUri) lines.push('?s schema:locationCreated <' + state.locationUri + '> .');
     if (state.hasImage) lines.push('?s schema:associatedMedia ?anyMediaF .');
-    if (state.periodBucket) {
-      var range = PERIOD_RANGES[state.periodBucket];
+    // Bucket-click and the manual van/tot fields are combinable (AND), not mutually
+    // exclusive -- so both constrain the SAME extracted ?yearF, in one BIND. BIND-ing a
+    // variable twice in one scope is a SPARQL error, so this must stay a single block even
+    // though it now has two independent sources of bounds.
+    if (state.periodBucket || state.yearFrom || state.yearTo) {
       lines.push('?s schema:temporal ?temporalF .');
       lines.push('BIND(xsd:integer(REPLACE(STR(?temporalF), "^([0-9]{4}).*$", "$1")) AS ?yearF)');
       var bounds = ['BOUND(?yearF)'];
-      if (range[0] !== null) bounds.push('?yearF >= ' + range[0]);
-      if (range[1] !== null) bounds.push('?yearF <= ' + range[1]);
+      if (state.periodBucket) {
+        var range = PERIOD_RANGES[state.periodBucket];
+        if (range[0] !== null) bounds.push('?yearF >= ' + range[0]);
+        if (range[1] !== null) bounds.push('?yearF <= ' + range[1]);
+      }
+      if (state.yearFrom) bounds.push('?yearF >= ' + state.yearFrom);
+      if (state.yearTo) bounds.push('?yearF <= ' + state.yearTo);
       lines.push('FILTER(' + bounds.join(' && ') + ')');
     }
     if (state.search) {
@@ -668,6 +738,25 @@
     ].join('\n');
   }
 
+  // Genre is a small, closed vocabulary (~20 terms in use -- confirmed live), so a full
+  // genre x periode-emmer crosstab is a handful of rows, not an aggregation explosion.
+  // Collection-wide by design, same as buildPeriodFacetQuery() and the facet counts --
+  // this app doesn't recompute aggregates within the current filter selection (see README).
+  function buildGenrePeriodQuery() {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>',
+      'SELECT ?genreLabel ?bucket (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      '  ?s a schema:CreativeWork ; schema:genre ?genre ; schema:temporal ?t .',
+      '  ?genre schema:name ?genreLabel .',
+      '  BIND(xsd:integer(REPLACE(STR(?t), "^([0-9]{4}).*$", "$1")) AS ?y)',
+      '  FILTER(BOUND(?y) && ?y > 1000 && ?y < 2100)',
+      '  BIND(IF(?y < 1800, "1", IF(?y < 1900, "2", IF(?y < 1950, "3", IF(?y < 1980, "4", IF(?y < 2000, "5", "6"))))) AS ?bucket)',
+      '}',
+      'GROUP BY ?genreLabel ?bucket'
+    ].join('\n');
+  }
+
   function valuesClause(ids) {
     return 'VALUES ?s { ' + ids.map(function (id) { return '<' + id + '>'; }).join(' ') + ' }';
   }
@@ -701,6 +790,12 @@
   // dereference and no "entity page" to be -- it stays a plain range filter.
   var GENRE_JOIN = '?s schema:genre ?bObj . ?bObj schema:name ?bLabel .';
   var MAKER_JOIN = '?s schema:creator ?bObj . ?bObj schema:name ?bLabel .';
+  // Prefer the RKDartists URI as a maker's entity id when we have one (true person-level
+  // dedup across the non-deduplicated Person nodes); fall back to the name string when we
+  // don't -- see makerEntityId() and the buildDetailQuery comment on schema:sameAs above.
+  function makerEntityId(row) {
+    return row.creatorRkdL ? row.creatorRkdL.value : (row.creatorL ? row.creatorL.value : null);
+  }
   var ENTITY_DIMENSIONS = {
     maker: {
       label: 'Maker', breakdownDim: 'Genre', breakdownJoin: GENRE_JOIN,
@@ -708,7 +803,7 @@
     },
     genre: {
       label: 'Genre', breakdownDim: 'Maker', breakdownJoin: MAKER_JOIN,
-      rowCol2: function (row) { return { dim: 'maker', id: row.creatorL ? row.creatorL.value : null, label: row.creatorL ? row.creatorL.value : '—' }; }
+      rowCol2: function (row) { return { dim: 'maker', id: makerEntityId(row), label: row.creatorL ? row.creatorL.value : '—' }; }
     },
     material: {
       label: 'Materiaal', breakdownDim: 'Genre', breakdownJoin: GENRE_JOIN,
@@ -716,12 +811,18 @@
     },
     location: {
       label: 'Locatie', breakdownDim: 'Maker', breakdownJoin: MAKER_JOIN,
-      rowCol2: function (row) { return { dim: 'maker', id: row.creatorL ? row.creatorL.value : null, label: row.creatorL ? row.creatorL.value : '—' }; }
+      rowCol2: function (row) { return { dim: 'maker', id: makerEntityId(row), label: row.creatorL ? row.creatorL.value : '—' }; }
     }
   };
 
+  function isRkdUri(id) { return typeof id === 'string' && id.indexOf('https://rkd.nl/artists/') === 0; }
+
   function buildEntityFilterClause(dim, id) {
     if (dim === 'maker') {
+      if (isRkdUri(id)) {
+        // True dedup: every Person-node that shares this RKDartists link, not just an exact name match.
+        return '?s schema:creator ?creatorF . ?creatorF schema:sameAs <' + id + '> .';
+      }
       return '?s schema:creator ?creatorF . ?creatorF schema:name ?creatorNameF .\n  FILTER(STR(?creatorNameF) = "' + sparqlEsc(id) + '")';
     }
     var pred = dim === 'genre' ? 'schema:genre' : dim === 'material' ? 'schema:material' : 'schema:locationCreated';
@@ -769,8 +870,38 @@
       'SELECT (SAMPLE(?label) AS ?labelL) WHERE { <' + id + '> schema:name ?label . }'
     ].join('\n');
   }
+  // An RKDartists-URI maker id isn't itself a name -- resolve it back to a representative
+  // name via any one of the (possibly several) Person-nodes sharing that sameAs link.
+  function buildMakerNameByRkdQuery(rkdUri) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT (SAMPLE(?name) AS ?nameL) WHERE {',
+      '  ?creator schema:sameAs <' + rkdUri + '> ; schema:name ?name .',
+      '}'
+    ].join('\n');
+  }
+  // Birth/death/occupation are attributes of the one real person all these duplicate
+  // Person-nodes represent -- verified identical across duplicates for a sample maker, so
+  // (unlike genre/materiaal/media) a plain SAMPLE() per field carries no cross-row mismatch
+  // risk here. Occupation can genuinely have several distinct values, hence GROUP_CONCAT.
+  function buildMakerBioQuery(rkdUri) {
+    return [
+      'PREFIX schema: <https://schema.org/>',
+      'SELECT (SAMPLE(?birth) AS ?birthL) (SAMPLE(?death) AS ?deathL) (GROUP_CONCAT(DISTINCT ?occLabel; separator=", ") AS ?occL) WHERE {',
+      '  ?creator schema:sameAs <' + rkdUri + '> .',
+      '  OPTIONAL { ?creator schema:birthDate ?birth . }',
+      '  OPTIONAL { ?creator schema:deathDate ?death . }',
+      '  OPTIONAL { ?creator schema:hasOccupation ?occObj . ?occObj schema:name ?occLabel . }',
+      '}'
+    ].join('\n');
+  }
   function resolveEntityLabel(dim, id) {
-    if (dim === 'maker') return Promise.resolve(id);
+    if (dim === 'maker') {
+      if (!isRkdUri(id)) return Promise.resolve(id);
+      return runQuery(buildMakerNameByRkdQuery(id)).then(function (rows) {
+        return rows.length && rows[0].nameL ? rows[0].nameL.value : id;
+      });
+    }
     var pools = dim === 'genre' ? [state.genreOptions, state.genreSearchResults]
       : dim === 'material' ? [state.materialOptions, state.materialSearchResults]
       : [state.locationOptions, state.locationSearchResults];
@@ -798,7 +929,7 @@
   function buildDetailQuery(ids) {
     return [
       'PREFIX schema: <https://schema.org/>',
-      'SELECT ?s (SAMPLE(?name) AS ?nameL) (SAMPLE(?creatorLabel) AS ?creatorL)',
+      'SELECT ?s (SAMPLE(?name) AS ?nameL) (SAMPLE(?creatorPacked) AS ?creatorPackedL)',
       '  (SAMPLE(?genrePacked) AS ?genrePackedL) (SAMPLE(?materialPacked) AS ?materialPackedL) (SAMPLE(?locationPacked) AS ?locationPackedL)',
       '  (SAMPLE(?temporal) AS ?temporalL) (SAMPLE(?mediaPacked) AS ?mediaPackedL)',
       '  (SAMPLE(?license) AS ?licenseL) (SAMPLE(?holderName) AS ?holderNameL)',
@@ -807,7 +938,16 @@
       'WHERE {',
       '  ' + valuesClause(ids),
       '  OPTIONAL { ?s schema:name ?name . }', // some works genuinely have no title -- must stay optional or they vanish from this query despite being counted
-      '  OPTIONAL { ?s schema:creator ?creator . ?creator schema:name ?creatorLabel . }',
+      // Person nodes aren't deduplicated (every work mints its own Person URI even for the
+      // same real person), BUT ~61% of them carry schema:sameAs -> an RKDartists URI, and
+      // *multiple* Person-URIs for the same real person share the identical RKDartists link
+      // -- a genuine dedup key. Packed with the label (not just SAMPLE()'d separately) for
+      // the same reason as genre/materiaal/locatie: keeps name and RKD-URI correlated.
+      '  OPTIONAL {',
+      '    ?s schema:creator ?creator . ?creator schema:name ?creatorLabel .',
+      '    OPTIONAL { ?creator schema:sameAs ?creatorRkd . FILTER(STRSTARTS(STR(?creatorRkd), "https://rkd.nl/artists/")) }',
+      '    BIND(' + packedPair('?creatorLabel', '?creatorRkd') + ' AS ?creatorPacked)',
+      '  }',
       // schema:additionalType ("Wat" on Beeldbank, e.g. "keramiek, miniatuur, vaas") is
       // genuinely multi-valued -- GROUP_CONCAT(DISTINCT ...) collects every value rather
       // than SAMPLE()'s arbitrary one, since there's no correlated partner field here that
@@ -858,10 +998,12 @@
     var material = unpackPair(row.materialPackedL);
     var location = unpackPair(row.locationPackedL);
     var media = unpackPair(row.mediaPackedL);
+    var creator = unpackPair(row.creatorPackedL); // [label, rkdUri] -- reversed order vs the others (label is the always-bound part here)
     row.genreUriL = genre[0]; row.genreL = genre[1];
     row.materialUriL = material[0]; row.materialL = material[1];
     row.locationUriL = location[0]; row.locationL = location[1];
     row.mediaThumbL = media[0]; row.mediaLicenseL = media[1];
+    row.creatorL = creator[0]; row.creatorRkdL = creator[1];
     return row;
   }
 
@@ -983,6 +1125,94 @@
     });
   }
 
+  // Fixed categorical palette for the analysis chart's genre segments -- genre is a small,
+  // closed ~20-term vocabulary (confirmed live), so 8 named colors + a grey "Overig" bucket
+  // for the long tail covers it without needing a generated/dynamic palette.
+  var ANALYSIS_COLORS = ['#8a6008', '#a83a2c', '#2f6f6a', '#7d4f7a', '#3f5f7a', '#6f7a2f', '#b6552e', '#5a7a52'];
+  var ANALYSIS_OVERIG_COLOR = '#8a8272';
+  var ANALYSIS_MAX_GENRES = 8;
+
+  function renderAnalysisChart(rows) {
+    var chartEl = document.getElementById('analysisChart');
+    var legendEl = document.getElementById('analysisLegend');
+    if (!rows || !rows.length) {
+      chartEl.innerHTML = '<div class="type-empty">Geen data gevonden.</div>';
+      legendEl.innerHTML = '';
+      return;
+    }
+
+    var totalsByGenre = {};
+    rows.forEach(function (r) {
+      var g = r.genreLabel.value, c = parseInt(r.cnt.value, 10);
+      totalsByGenre[g] = (totalsByGenre[g] || 0) + c;
+    });
+    var genresSorted = Object.keys(totalsByGenre).sort(function (a, b) { return totalsByGenre[b] - totalsByGenre[a]; });
+    var topGenres = genresSorted.slice(0, ANALYSIS_MAX_GENRES);
+    var hasOverig = genresSorted.length > ANALYSIS_MAX_GENRES;
+    var overigTotal = 0;
+    if (hasOverig) genresSorted.slice(ANALYSIS_MAX_GENRES).forEach(function (g) { overigTotal += totalsByGenre[g]; });
+
+    var colorByGenre = {};
+    topGenres.forEach(function (g, i) { colorByGenre[g] = ANALYSIS_COLORS[i % ANALYSIS_COLORS.length]; });
+
+    // bucket -> genre-or-"Overig" -> count
+    var byBucket = {};
+    PERIOD_BUCKETS.forEach(function (b) { byBucket[b.id] = {}; });
+    rows.forEach(function (r) {
+      var g = r.genreLabel.value, bucket = r.bucket.value, c = parseInt(r.cnt.value, 10);
+      if (!byBucket[bucket]) return; // defensive: unexpected bucket id from the endpoint
+      var key = topGenres.indexOf(g) !== -1 ? g : 'Overig';
+      byBucket[bucket][key] = (byBucket[bucket][key] || 0) + c;
+    });
+
+    var order = topGenres.slice();
+    if (hasOverig) order.push('Overig');
+
+    var maxTotal = 0;
+    PERIOD_BUCKETS.forEach(function (b) {
+      var total = 0;
+      order.forEach(function (g) { total += byBucket[b.id][g] || 0; });
+      maxTotal = Math.max(maxTotal, total);
+    });
+
+    chartEl.innerHTML = '';
+    PERIOD_BUCKETS.forEach(function (b) {
+      var counts = byBucket[b.id];
+      var total = 0;
+      order.forEach(function (g) { total += counts[g] || 0; });
+      var pct = maxTotal ? Math.max(4, Math.round(total / maxTotal * 100)) : 4;
+      var stackHtml = order.map(function (g) {
+        var c = counts[g] || 0;
+        if (!c) return '';
+        var color = g === 'Overig' ? ANALYSIS_OVERIG_COLOR : colorByGenre[g];
+        return '<span class="seg" style="flex-grow:' + c + ';background:' + color + '" title="' + esc(g) + ': ' + c.toLocaleString('nl-NL') + '"></span>';
+      }).join('');
+      var barEl = document.createElement('div');
+      barEl.className = 'analysis-bar';
+      barEl.innerHTML =
+        '<div class="stack" style="height:' + pct + '%">' + stackHtml + '</div>' +
+        '<span class="lbl">' + b.label + '</span>';
+      chartEl.appendChild(barEl);
+    });
+
+    legendEl.innerHTML = order.map(function (g) {
+      var color = g === 'Overig' ? ANALYSIS_OVERIG_COLOR : colorByGenre[g];
+      var total = g === 'Overig' ? overigTotal : totalsByGenre[g];
+      return '<span><span class="sw" style="background:' + color + '"></span>' + esc(g) + ' <span class="tabular">' + total.toLocaleString('nl-NL') + '</span></span>';
+    }).join('');
+  }
+
+  function loadAnalysisChart() {
+    if (state.analysisData) { renderAnalysisChart(state.analysisData); return; }
+    document.getElementById('analysisChart').innerHTML = '<div class="type-empty">Bezig met laden&hellip;</div>';
+    runQuery(buildGenrePeriodQuery()).then(function (rows) {
+      state.analysisData = rows;
+      renderAnalysisChart(rows);
+    }).catch(function () {
+      document.getElementById('analysisChart').innerHTML = '<div class="type-empty">Kon analysedata niet laden.</div>';
+    });
+  }
+
   // Each facet-search input gets its OWN debounce timer and its own staleness token --
   // a single shared timer meant typing in one field could silently swallow another
   // field's pending search, and with no token guard a slow response for an earlier
@@ -1052,24 +1282,53 @@
 
   function localId(uri) { return uri.split('/').pop(); }
 
+  // Clears exactly the one filter named by `key` and reloads -- shared by each chip's ×
+  // button (see renderResultCount) so removing one active filter never touches the others.
+  function clearFilterChip(key) {
+    if (key === 'maker') { state.maker = null; renderMakerFacet(); }
+    else if (key === 'genre') { state.genreUri = null; renderGenreFacet(); }
+    else if (key === 'material') { state.materialUri = null; renderMaterialFacet(); }
+    else if (key === 'location') { state.locationUri = null; renderLocationFacet(); }
+    else if (key === 'period') { state.periodBucket = null; renderPeriodChart(); }
+    else if (key === 'yearRange') {
+      state.yearFrom = null; state.yearTo = null;
+      document.getElementById('yearFromInput').value = '';
+      document.getElementById('yearToInput').value = '';
+    }
+    else if (key === 'hasImage') { state.hasImage = false; document.getElementById('hasImageToggle').checked = false; }
+    else if (key === 'search') { state.search = ''; document.getElementById('searchInput').value = ''; }
+    state.offset = 0;
+    loadResults();
+  }
+
   function renderResultCount(count) {
-    var el = document.getElementById('resultCount');
-    var parts = ['<b class="tabular">' + (count === null ? '&hellip;' : count.toLocaleString('nl-NL')) + '</b> werken'];
-    var filters = [];
-    if (state.maker) filters.push(state.maker);
-    if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; if (g) filters.push(g.label); }
+    document.getElementById('resultCount').innerHTML =
+      '<b class="tabular">' + (count === null ? '&hellip;' : count.toLocaleString('nl-NL')) + '</b> werken';
+
+    var chips = [];
+    if (state.maker) chips.push({ key: 'maker', label: state.maker });
+    if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; if (g) chips.push({ key: 'genre', label: g.label }); }
     if (state.materialUri) {
       var m = (state.materialSearchResults || state.materialOptions).filter(function (o) { return o.id === state.materialUri; })[0];
-      filters.push(m ? m.label : 'materiaal');
+      chips.push({ key: 'material', label: m ? m.label : 'materiaal' });
     }
     if (state.locationUri) {
       var l = (state.locationSearchResults || state.locationOptions).filter(function (o) { return o.id === state.locationUri; })[0];
-      filters.push(l ? l.label : 'locatie');
+      chips.push({ key: 'location', label: l ? l.label : 'locatie' });
     }
-    if (state.periodBucket) { var p = PERIOD_BUCKETS.filter(function (b) { return b.id === state.periodBucket; })[0]; if (p) filters.push(p.label); }
-    if (state.hasImage) filters.push('met afbeelding');
-    if (state.search) filters.push('"' + esc(state.search) + '"');
-    el.innerHTML = parts.join(' ') + (filters.length ? ' <span class="active-filters">&middot; ' + esc(filters.join(' + ')) + '</span>' : '');
+    if (state.periodBucket) { var p = PERIOD_BUCKETS.filter(function (b) { return b.id === state.periodBucket; })[0]; if (p) chips.push({ key: 'period', label: p.label }); }
+    if (state.yearFrom || state.yearTo) {
+      var yrLabel = (state.yearFrom || '...') + '–' + (state.yearTo || '...');
+      chips.push({ key: 'yearRange', label: yrLabel });
+    }
+    if (state.hasImage) chips.push({ key: 'hasImage', label: 'met afbeelding' });
+    if (state.search) chips.push({ key: 'search', label: '"' + state.search + '"' });
+
+    var chipsEl = document.getElementById('activeChips');
+    chipsEl.hidden = chips.length === 0;
+    chipsEl.innerHTML = chips.map(function (c) {
+      return '<span class="filter-chip">' + esc(c.label) + '<button type="button" data-clear="' + c.key + '" title="Filter verwijderen" aria-label="' + esc(c.label) + ' verwijderen">&times;</button></span>';
+    }).join('');
   }
 
   // Known rightsstatements.org URIs seen in this dataset's schema:license on MediaObject,
@@ -1258,7 +1517,7 @@
       mediaAreaHtml(row, mediaThumb, mediaLicense, beeldbank) +
       '<div class="detail-body">' +
         '<p class="detail-title">' + esc(naam) + '</p>' +
-        '<p class="detail-sub">' + entityLinkHtml('maker', maker, maker) + (jaar !== '—' ? ' &middot; ' + esc(jaar) : '') + '</p>' +
+        '<p class="detail-sub">' + entityLinkHtml('maker', makerEntityId(row), maker) + (jaar !== '—' ? ' &middot; ' + esc(jaar) : '') + '</p>' +
         '<div class="rights-box">' +
           '<span class="rights-license">' + esc(license || 'rechtenstatus onbekend') + '</span>' +
           (holderName && holderName !== license ? ' <span class="rights-holder">(rechthebbende: ' + esc(holderName) + ')</span>' : '') +
@@ -1300,7 +1559,7 @@
       // control in the cell that names the action, not a giant ambiguous click target.
       tr.innerHTML =
         '<td class="naam-cell"><button type="button" class="row-toggle" data-row-idx="' + idx + '" aria-expanded="' + (state.openRow === idx ? 'true' : 'false') + '">' + esc(naam) + '</button></td>' +
-        '<td>' + entityLinkHtml('maker', maker, maker) + '</td>' +
+        '<td>' + entityLinkHtml('maker', makerEntityId(row), maker) + '</td>' +
         '<td>' + entityLinkHtml('genre', genreUri, genre) + '</td>' +
         '<td class="jaar-cell tabular">' + esc(jaar) + '</td>';
       tr.addEventListener('click', function (e) { // the button's click bubbles here too, so this covers mouse-anywhere-in-row AND keyboard
@@ -1336,7 +1595,7 @@
       card.innerHTML =
         '<div class="card-thumb">' + thumbHtml(mediaThumb, mediaLicense, beeldbank) + '</div>' +
         '<div class="card-body"><p class="card-title">' + esc(naam) + '</p><p class="card-sub">' +
-        entityLinkHtml('maker', maker, maker) +
+        entityLinkHtml('maker', makerEntityId(row), maker) +
         '</p></div>';
       var openCard = function (e) {
         if (handleEntityLinkClick(e)) return;
@@ -1393,8 +1652,9 @@
     var def = ENTITY_DIMENSIONS[dim];
     document.getElementById('entityDim').textContent = def.label;
     document.getElementById('entityWorksCol2').textContent = def.breakdownDim;
-    document.getElementById('entityName').textContent = dim === 'maker' ? id : '…';
+    document.getElementById('entityName').textContent = (dim === 'maker' && !isRkdUri(id)) ? id : '…';
     document.getElementById('entityMeta').textContent = 'Bezig met laden…';
+    document.getElementById('entityBio').hidden = true;
     document.getElementById('entityBreakdown').innerHTML = '';
     document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">Bezig met zoeken…</td></tr>';
     document.getElementById('entityPrevBtn').disabled = true;
@@ -1407,6 +1667,23 @@
       if (token !== entityReqToken) return;
       document.getElementById('entityName').textContent = id; // label lookup failed -- show the raw URI rather than leaving "…" stuck forever
     });
+
+    if (dim === 'maker' && isRkdUri(id)) {
+      runQuery(buildMakerBioQuery(id)).then(function (rows) {
+        if (token !== entityReqToken || !rows.length) return;
+        var r = rows[0];
+        var birth = r.birthL ? r.birthL.value.slice(0, 4) : null; // year only, matches how "jaar" is shown elsewhere
+        var death = r.deathL ? r.deathL.value.slice(0, 4) : null;
+        var occ = r.occL && r.occL.value ? r.occL.value : null;
+        var parts = [];
+        if (birth || death) parts.push((birth || '?') + '–' + (death || 'heden'));
+        if (occ) parts.push(occ);
+        parts.push('<a href="' + esc(id) + '" target="_blank" rel="noopener">RKDartists &rarr;</a>');
+        var bioEl = document.getElementById('entityBio');
+        bioEl.innerHTML = parts.join(' &middot; ');
+        bioEl.hidden = false;
+      }).catch(function () { /* bio is a bonus, not critical -- silently skip on failure */ });
+    }
 
     runQuery(buildEntityIdsQuery(dim, id, state.entityOffset)).then(function (idRows) {
       if (token !== entityReqToken) return null;
@@ -1528,17 +1805,37 @@
     loadResults();
   });
 
+  function applyYearRange() {
+    var fromVal = document.getElementById('yearFromInput').value.trim();
+    var toVal = document.getElementById('yearToInput').value.trim();
+    state.yearFrom = /^\d{1,4}$/.test(fromVal) ? parseInt(fromVal, 10) : null;
+    state.yearTo = /^\d{1,4}$/.test(toVal) ? parseInt(toVal, 10) : null;
+    state.offset = 0; state.openRow = null;
+    loadResults();
+  }
+  document.getElementById('yearRangeApply').addEventListener('click', applyYearRange);
+  ['yearFromInput', 'yearToInput'].forEach(function (id) {
+    document.getElementById(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') applyYearRange(); });
+  });
+
+  document.getElementById('activeChips').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-clear]');
+    if (btn) clearFilterChip(btn.getAttribute('data-clear'));
+  });
+
   document.getElementById('resetBtn').addEventListener('click', function () {
     clearTimeout(searchTimer); // a just-typed title search was otherwise still pending and would reappear ~450ms after reset
     facetSearchCancellers.forEach(function (cancel) { cancel(); });
     state.maker = null; state.genreUri = null; state.materialUri = null; state.locationUri = null;
-    state.periodBucket = null; state.hasImage = false; state.search = '';
+    state.periodBucket = null; state.yearFrom = null; state.yearTo = null; state.hasImage = false; state.search = '';
     state.makerSearchResults = null; state.materialSearchResults = null; state.locationSearchResults = null;
     state.offset = 0;
     document.getElementById('searchInput').value = '';
     document.getElementById('makerSearch').value = '';
     document.getElementById('materialSearch').value = '';
     document.getElementById('locationSearch').value = '';
+    document.getElementById('yearFromInput').value = '';
+    document.getElementById('yearToInput').value = '';
     document.getElementById('hasImageToggle').checked = false;
     renderMakerFacet(); renderGenreFacet(); renderMaterialFacet(); renderLocationFacet(); renderPeriodChart();
     loadResults();
@@ -1557,6 +1854,8 @@
       document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
       document.getElementById('tableView').hidden = state.tab !== 'table';
       document.getElementById('galleryView').hidden = state.tab !== 'gallery';
+      document.getElementById('analysisView').hidden = state.tab !== 'analysis';
+      if (state.tab === 'analysis') loadAnalysisChart();
     });
   });
 
