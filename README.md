@@ -24,7 +24,7 @@ npx wrangler secret put SITE_PASSWORD
 ```
 (plak de waarde als er om gevraagd wordt — komt nergens in een bestand terecht)
 
-`SITE_USER`/`SITE_PASSWORD` zetten een simpele HTTP Basic Auth-login voor de hele site (zowel de pagina als `/api/sparql`) — geen account- of sessiesysteem, gewoon één gebruikersnaam/wachtwoord dat de browser opvraagt. Over HTTPS is dat verkeer gewoon TLS-versleuteld (Basic Auth is *geen* onversleuteld protocol — zie [RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)); wat er wél ontbreekt is lockout/backoff na foutieve pogingen, sessieverval en per-gebruiker herroepbaarheid. Het is een "houd dit prototype uit toevallig zoek-/crawlverkeer"-gate, geen vervanging voor echte toegangscontrole.
+`SITE_USER`/`SITE_PASSWORD` zetten een eigen inlogscherm voor de hele site (zowel de pagina als `/api/sparql`) — geen account-systeem, gewoon één gebruikersnaam/wachtwoord. De Worker rendert zelf een HTML-inlogformulier (`/login`) en zet na een geslaagde login een ondertekend sessiecookie (30 dagen geldig, `HttpOnly`/`Secure`/`SameSite=Lax`) — dit gebruikte eerst HTTP Basic Auth (de native inlog-pop-up van de browser), maar die bleek onbetrouwbaar: op meerdere zakelijke laptops onderdrukte browser-/apparaatbeleid de pop-up stilletjes, met een kaal "Authenticatie vereist"-scherm zonder invulveld tot gevolg. Een eigen inlogpagina heeft die afhankelijkheid niet. Wat nog steeds ontbreekt: lockout/backoff na foutieve pogingen en per-sessie herroepbaarheid (los van het wachtwoord rouleren, wat *wel* alle sessies in één klap ongeldig maakt). Het blijft een "houd dit prototype uit toevallig zoek-/crawlverkeer"-gate, geen vervanging voor echte toegangscontrole.
 
 ## Lokaal draaien
 
