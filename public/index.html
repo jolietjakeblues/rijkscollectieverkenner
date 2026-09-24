@@ -903,10 +903,20 @@
   // works that HAVE an image (?s schema:associatedMedia ?media is required, not OPTIONAL):
   // a work without any image has no image-rights status to report, and "Afbeeldingsdekking"
   // already covers how many/which works that is.
+  //
+  // Counts DISTINCT ?media, not DISTINCT ?s -- a second reviewer round caught that counting
+  // works here double-counts: a work with two images that carry two different URI forms of
+  // the same rights statement (rightsstatements.org has both a localized "page" URI and a
+  // canonical "vocab" URI for "In Copyright", see rightsLabel()) was counted once per URI
+  // group, and renderRightsView's later merge-by-label step then summed both groups back
+  // together -- counting that one work twice. A media item has exactly one schema:license
+  // value in practice, so counting media instead makes every row's membership mutually
+  // exclusive: each image lands in exactly one group, the later label-merge just recombines
+  // disjoint sets, and percentages genuinely sum to 100%.
   function buildRightsQuery() {
     return [
       'PREFIX schema: <https://schema.org/>',
-      'SELECT ?license (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
+      'SELECT ?license (COUNT(DISTINCT ?media) AS ?cnt) WHERE {',
       '  ?s a schema:CreativeWork ; schema:associatedMedia ?media .',
       '  OPTIONAL { ?media schema:license ?license . }',
       '}',
@@ -1318,7 +1328,7 @@
   function renderGenrePeriodView(rows) {
     var bodyEl = document.getElementById('analysisBody');
     bodyEl.innerHTML =
-      '<p class="analysis-note">Deze grafiek telt de werken die zowel een <strong>genre</strong> als een <strong>periode</strong> hebben (een werk zonder een van beide telt hier niet mee), ingedeeld naar periode (horizontale as, de balken) en genre (kleur binnen elke balk &mdash; zie de legenda onderaan). Filters die je in de zijbalk hebt ingesteld gelden hier <strong>niet</strong>: dit blijft altijd de volledige collectie. Het getal boven elke balk is het totaal aantal (getelde) werken uit die periode; de balkhoogte zelf is relatief (de drukste periode krijgt de volle hoogte).</p>' +
+      '<p class="analysis-note">Deze grafiek telt de werken die zowel een <strong>genre</strong> als een <strong>periode</strong> hebben (een werk zonder een van beide telt hier niet mee), ingedeeld naar periode (horizontale as, de balken) en genre (kleur binnen elke balk &mdash; zie de legenda onderaan). Filters die je in de zijbalk hebt ingesteld gelden hier <strong>niet</strong>: dit blijft altijd de volledige collectie. Het getal boven elke balk is de <strong>som van de genre-aantallen</strong> in die periode, niet per se het aantal unieke werken: een werk met meerdere genres telt voor elk genre apart mee, dus dit getal kan iets hoger uitvallen dan het werkelijke aantal werken uit die periode. De balkhoogte zelf is relatief (de drukste periode krijgt de volle hoogte).</p>' +
       '<div class="analysis-chart" id="analysisChart"></div>' +
       '<div class="analysis-legend" id="analysisLegend"></div>';
     var chartEl = document.getElementById('analysisChart');
@@ -1521,11 +1531,11 @@
       return '<div class="rank-row-wrap"><div class="rank-row">' +
         '<span class="rank-name">' + esc(i.label) + '</span>' +
         '<span class="rank-bar-track"><span class="rank-bar-fill" style="width:' + pct + '%"></span></span>' +
-        '<span class="rank-count tabular">' + i.cnt.toLocaleString('nl-NL') + ' (' + sharePct + '%)</span></div>' +
+        '<span class="rank-count tabular">' + i.cnt.toLocaleString('nl-NL') + ' afbeeldingen (' + sharePct + '%)</span></div>' +
         sourceHtml + '</div>';
     }).join('');
     bodyEl.innerHTML =
-      '<p class="analysis-note">Rechtenstatus van <strong>de afbeelding</strong> (niet van het werk zelf &mdash; die twee kunnen verschillen, zie de rechtenvermelding per afbeelding in de detailweergave). Alleen werken die een afbeelding hebben tellen hier mee &mdash; zie "Afbeeldingsdekking" voor hoeveel dat er zijn. Over de <strong>hele collectie</strong>, filters gelden hier niet.</p>' +
+      '<p class="analysis-note">Rechtenstatus van <strong>de afbeeldingen</strong> (niet van het werk zelf &mdash; die twee kunnen verschillen, zie de rechtenvermelding per afbeelding in de detailweergave). Telt individuele afbeeldingen, niet werken: een werk met meerdere afbeeldingen telt voor elke afbeelding apart mee, maar elke afbeelding zelf valt in precies één categorie, dus de percentages tellen op tot 100%. Alleen werken die een afbeelding hebben tellen hier mee &mdash; zie "Afbeeldingsdekking" voor hoeveel dat er zijn. Over de <strong>hele collectie</strong>, filters gelden hier niet.</p>' +
       '<div class="rank-list">' + rowsHtml + '</div>';
   }
 
@@ -1535,17 +1545,26 @@
     });
   }
 
+  // Same staleness-token pattern as reqToken/entityReqToken below: switching sub-tabs
+  // quickly could otherwise let an earlier, slower request's .then()/.catch() land AFTER a
+  // newer one and overwrite whatever the visitor is now looking at (a stale chart, or even
+  // a stale error message replacing a chart that loaded fine) -- found live by a reviewer.
+  var analysisReqToken = 0;
+
   function loadAnalysisView(viewId) {
     state.analysisView = viewId;
     renderAnalysisSubtabs();
     var view = ANALYSIS_VIEWS[viewId];
     var bodyEl = document.getElementById('analysisBody');
+    var myToken = ++analysisReqToken;
     if (state.analysisCache[viewId]) { view.render(state.analysisCache[viewId]); return; }
     bodyEl.innerHTML = '<div class="type-empty">Bezig met laden&hellip;</div>';
     runQuery(view.query()).then(function (rows) {
+      if (myToken !== analysisReqToken) return; // a newer sub-tab switch already happened
       state.analysisCache[viewId] = rows;
       view.render(rows);
     }).catch(function () {
+      if (myToken !== analysisReqToken) return;
       bodyEl.innerHTML = '<div class="type-empty">Kon analysedata niet laden.</div>';
     });
   }
@@ -1633,7 +1652,15 @@
       document.getElementById('yearToInput').value = '';
     }
     else if (key === 'hasImage') { state.hasImage = false; document.getElementById('hasImageToggle').checked = false; }
-    else if (key === 'search') { state.search = ''; document.getElementById('searchInput').value = ''; }
+    else if (key === 'search') {
+      // A still-pending debounce timer captured the just-typed text as a closure variable
+      // (see the searchInput listener below) -- clearing state.search/the input's value
+      // here does NOT cancel that timer, so without this it fires ~450ms later and silently
+      // reintroduces the text this chip's x was just clicked to remove. Same fix resetBtn
+      // already applies to itself, just missing here until a reviewer caught it live.
+      clearTimeout(searchTimer);
+      state.search = ''; document.getElementById('searchInput').value = '';
+    }
     state.offset = 0;
     loadResults();
   }
