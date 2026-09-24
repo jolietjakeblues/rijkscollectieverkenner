@@ -140,6 +140,28 @@
     justify-content: space-between;
   }
   .facet-group h2 .count-tag { font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+  /* Collapsible facet groups (maker/genre/materiaal/locatie) -- five always-open groups
+     with their own scrollable lists used to push the sidebar far below the fold on first
+     load. Closed by default; a group auto-opens the moment its filter becomes active (see
+     render*Facet()), so an active filter never ends up hidden behind a collapsed header. */
+  .facet-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: none; border: none; padding: 2px 0; margin: 0 0 4px; font: inherit; cursor: pointer;
+  }
+  .facet-toggle-label {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  .facet-toggle-label .count-tag { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .facet-toggle:hover .facet-toggle-label { color: var(--gold); }
+  .facet-chevron {
+    font-size: 15px; color: var(--muted); line-height: 1; transition: transform 0.15s ease;
+    transform: rotate(0deg);
+  }
+  .facet-toggle[aria-expanded="true"] .facet-chevron { transform: rotate(90deg); }
+  .facet-toggle[aria-expanded="true"] .facet-toggle-label { color: var(--ink); }
+  .facet-body { margin-top: 6px; }
   .help-bar {
     display: flex; flex-wrap: wrap; gap: 10px 28px;
     background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
@@ -481,26 +503,46 @@
       </div>
 
       <div class="facet-group">
-        <h2>Maker <span class="count-tag" id="makerFacetNote"></span></h2>
-        <input type="text" class="type-search" id="makerSearch" placeholder="filter makers&hellip;" autocomplete="off">
-        <div class="type-list" id="makerList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <button class="facet-toggle" type="button" data-facet="maker" id="facetToggle-maker" aria-expanded="false" aria-controls="facetBody-maker">
+          <span class="facet-toggle-label">Maker <span class="count-tag" id="makerFacetNote"></span></span>
+          <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="facet-body" id="facetBody-maker" hidden>
+          <input type="text" class="type-search" id="makerSearch" placeholder="filter makers&hellip;" autocomplete="off">
+          <div class="type-list" id="makerList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        </div>
       </div>
 
       <div class="facet-group">
-        <h2>Genre <span class="count-tag" id="genreFacetNote"></span></h2>
-        <div class="type-list" id="genreList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <button class="facet-toggle" type="button" data-facet="genre" id="facetToggle-genre" aria-expanded="false" aria-controls="facetBody-genre">
+          <span class="facet-toggle-label">Genre <span class="count-tag" id="genreFacetNote"></span></span>
+          <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="facet-body" id="facetBody-genre" hidden>
+          <div class="type-list" id="genreList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        </div>
       </div>
 
       <div class="facet-group">
-        <h2>Materiaal <span class="count-tag" id="materialFacetNote"></span></h2>
-        <input type="text" class="type-search" id="materialSearch" placeholder="filter materialen&hellip;" autocomplete="off">
-        <div class="type-list" id="materialList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <button class="facet-toggle" type="button" data-facet="material" id="facetToggle-material" aria-expanded="false" aria-controls="facetBody-material">
+          <span class="facet-toggle-label">Materiaal <span class="count-tag" id="materialFacetNote"></span></span>
+          <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="facet-body" id="facetBody-material" hidden>
+          <input type="text" class="type-search" id="materialSearch" placeholder="filter materialen&hellip;" autocomplete="off">
+          <div class="type-list" id="materialList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        </div>
       </div>
 
       <div class="facet-group">
-        <h2>Locatie <span class="count-tag" id="locationFacetNote"></span></h2>
-        <input type="text" class="type-search" id="locationSearch" placeholder="filter locaties&hellip;" autocomplete="off">
-        <div class="type-list" id="locationList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        <button class="facet-toggle" type="button" data-facet="location" id="facetToggle-location" aria-expanded="false" aria-controls="facetBody-location">
+          <span class="facet-toggle-label">Locatie <span class="count-tag" id="locationFacetNote"></span></span>
+          <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="facet-body" id="facetBody-location" hidden>
+          <input type="text" class="type-search" id="locationSearch" placeholder="filter locaties&hellip;" autocomplete="off">
+          <div class="type-list" id="locationList"><div class="type-empty">Bezig met laden&hellip;</div></div>
+        </div>
       </div>
 
       <div class="facet-group">
@@ -640,7 +682,12 @@
     viewDim: null,       // 'maker' | 'genre' | 'material' when view === 'entity'
     viewId: null,        // maker name, or genre/materiaal URI
     entityOffset: 0,
-    entityOpenRow: null
+    entityOpenRow: null,
+    // Collapsed by default (see .facet-toggle CSS) -- a group flips to true the moment its
+    // filter becomes active (render*Facet()) or the user clicks its header, and stays open
+    // afterwards even if the filter is cleared again, so a manual "leave it open" choice
+    // isn't silently undone. Filters wissen resets all four back to closed.
+    facetOpen: { maker: false, genre: false, material: false, location: false }
   };
 
   function esc(s) {
@@ -1065,40 +1112,58 @@
   // ANY matching value instead of just filtering the pre-loaded top list client-side.
   // Genre stays a plain top list: it's a closed ~20-value vocabulary, so there's nothing
   // a live search would find that the full list doesn't already show.
+  // Reflects state.facetOpen[facetId] onto its <button>/<div> pair. Called after every
+  // render*Facet() (which may have just auto-opened the group) and from the toggle button's
+  // own click handler -- kept separate from the list-rendering itself since toggling open/
+  // closed should never re-fetch or re-render the (possibly already-loaded) option list.
+  function applyFacetOpenState(facetId) {
+    var open = !!state.facetOpen[facetId];
+    document.getElementById('facetToggle-' + facetId).setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.getElementById('facetBody-' + facetId).hidden = !open;
+  }
+
   function renderMakerFacet() {
     var opts = state.makerSearchResults || state.makerOptions;
+    if (state.maker) state.facetOpen.maker = true;
     renderFacetList('makerList', opts, state.maker, function (o) {
       state.maker = state.maker === o.id ? null : o.id;
       state.offset = 0; state.openRow = null;
       renderMakerFacet();
       loadResults();
     });
+    applyFacetOpenState('maker');
   }
   function renderGenreFacet() {
+    if (state.genreUri) state.facetOpen.genre = true;
     renderFacetList('genreList', state.genreOptions, state.genreUri, function (o) {
       state.genreUri = state.genreUri === o.id ? null : o.id;
       state.offset = 0; state.openRow = null;
       renderGenreFacet();
       loadResults();
     });
+    applyFacetOpenState('genre');
   }
   function renderMaterialFacet() {
     var opts = state.materialSearchResults || state.materialOptions;
+    if (state.materialUri) state.facetOpen.material = true;
     renderFacetList('materialList', opts, state.materialUri, function (o) {
       state.materialUri = state.materialUri === o.id ? null : o.id;
       state.offset = 0; state.openRow = null;
       renderMaterialFacet();
       loadResults();
     });
+    applyFacetOpenState('material');
   }
   function renderLocationFacet() {
     var opts = state.locationSearchResults || state.locationOptions;
+    if (state.locationUri) state.facetOpen.location = true;
     renderFacetList('locationList', opts, state.locationUri, function (o) {
       state.locationUri = state.locationUri === o.id ? null : o.id;
       state.offset = 0; state.openRow = null;
       renderLocationFacet();
       loadResults();
     });
+    applyFacetOpenState('location');
   }
 
   function renderPeriodChart() {
@@ -1799,6 +1864,14 @@
   wireLiveFacetSearch('materialSearch', 'material', 'materialList', 'materialSearchResults', renderMaterialFacet);
   wireLiveFacetSearch('locationSearch', 'location', 'locationList', 'locationSearchResults', renderLocationFacet);
 
+  document.querySelectorAll('.facet-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var facetId = btn.getAttribute('data-facet');
+      state.facetOpen[facetId] = !state.facetOpen[facetId];
+      applyFacetOpenState(facetId);
+    });
+  });
+
   document.getElementById('hasImageToggle').addEventListener('change', function (e) {
     state.hasImage = e.target.checked;
     state.offset = 0; state.openRow = null;
@@ -1837,6 +1910,7 @@
     document.getElementById('yearFromInput').value = '';
     document.getElementById('yearToInput').value = '';
     document.getElementById('hasImageToggle').checked = false;
+    state.facetOpen = { maker: false, genre: false, material: false, location: false };
     renderMakerFacet(); renderGenreFacet(); renderMaterialFacet(); renderLocationFacet(); renderPeriodChart();
     loadResults();
   });
