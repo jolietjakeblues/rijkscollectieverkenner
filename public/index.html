@@ -264,6 +264,13 @@
   .rank-bar-fill { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
   .rank-count { width: 150px; flex: none; text-align: right; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
   @media (max-width: 560px) { .rank-name, .rank-count { width: 110px; } }
+  .rank-row-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .rank-source {
+    padding-left: 10px; border-left: 2px solid var(--border);
+    font-family: var(--font-mono); font-size: 10px; color: var(--muted); word-break: break-all;
+  }
+  .rank-source a { color: var(--muted); }
+  .rank-source a:hover { color: var(--gold); }
 
   .analysis-table-wrap { overflow-x: auto; }
   .analysis-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
@@ -888,15 +895,20 @@
     ].join('\n');
   }
 
-  // The work's OWN rights status (not a MediaObject's -- see buildDetailQuery's comment on
-  // why those two can differ). ?license stays unbound for a work with none, so a row with
-  // no 'license' key in the JSON result IS the "geen rechtenstatus vermeld" bucket.
+  // The MEDIA's rights status, not the work's own schema:license -- a live example a
+  // reviewer flagged: a work whose own schema:license was unset ("onbekend") while its
+  // associatedMedia clearly carried "In Copyright". Visitors care about "can I reuse this
+  // picture", which is the image's rights statement, not the abstract work-level field --
+  // see buildDetailQuery's comment on why those two aren't always the same value. Scoped to
+  // works that HAVE an image (?s schema:associatedMedia ?media is required, not OPTIONAL):
+  // a work without any image has no image-rights status to report, and "Afbeeldingsdekking"
+  // already covers how many/which works that is.
   function buildRightsQuery() {
     return [
       'PREFIX schema: <https://schema.org/>',
       'SELECT ?license (COUNT(DISTINCT ?s) AS ?cnt) WHERE {',
-      '  ?s a schema:CreativeWork .',
-      '  OPTIONAL { ?s schema:license ?license . }',
+      '  ?s a schema:CreativeWork ; schema:associatedMedia ?media .',
+      '  OPTIONAL { ?media schema:license ?license . }',
       '}',
       'GROUP BY ?license'
     ].join('\n');
@@ -1306,7 +1318,7 @@
   function renderGenrePeriodView(rows) {
     var bodyEl = document.getElementById('analysisBody');
     bodyEl.innerHTML =
-      '<p class="analysis-note">Deze grafiek telt <strong>alle werken in de hele collectie</strong>, ingedeeld naar periode (horizontale as, de balken) en genre (kleur binnen elke balk &mdash; zie de legenda onderaan). Filters die je in de zijbalk hebt ingesteld gelden hier <strong>niet</strong>: dit blijft altijd de complete collectie. Het getal boven elke balk is het totaal aantal werken uit die periode; de balkhoogte zelf is relatief (de drukste periode krijgt de volle hoogte).</p>' +
+      '<p class="analysis-note">Deze grafiek telt de werken die zowel een <strong>genre</strong> als een <strong>periode</strong> hebben (een werk zonder een van beide telt hier niet mee), ingedeeld naar periode (horizontale as, de balken) en genre (kleur binnen elke balk &mdash; zie de legenda onderaan). Filters die je in de zijbalk hebt ingesteld gelden hier <strong>niet</strong>: dit blijft altijd de volledige collectie. Het getal boven elke balk is het totaal aantal (getelde) werken uit die periode; de balkhoogte zelf is relatief (de drukste periode krijgt de volle hoogte).</p>' +
       '<div class="analysis-chart" id="analysisChart"></div>' +
       '<div class="analysis-legend" id="analysisLegend"></div>';
     var chartEl = document.getElementById('analysisChart');
@@ -1394,7 +1406,7 @@
         '<span class="rank-count tabular">' + i.cnt.toLocaleString('nl-NL') + ' werken</span></div>';
     }).join('');
     bodyEl.innerHTML =
-      '<p class="analysis-note">De 15 makers met de meeste werken, over de <strong>hele collectie</strong> (filters gelden hier niet). Makers zijn hier gegroepeerd op naam, niet op een gededuplificeerde persoonsidentiteit &mdash; zie de beperking hierover in de README als eenzelfde maker onder een andere schrijfwijze ook nog los meetelt.</p>' +
+      '<p class="analysis-note">De 15 makers met de meeste werken, onder de werken die een maker vermeld hebben (filters gelden hier niet). Makers zijn hier gegroepeerd op naam, niet op een gededupliceerde persoonsidentiteit &mdash; zie de beperking hierover in de README als eenzelfde maker onder een andere schrijfwijze ook nog los meetelt.</p>' +
       '<div class="rank-list">' + rowsHtml + '</div>';
   }
 
@@ -1417,7 +1429,7 @@
         '<span class="rank-count tabular">' + pct + '% (' + d.withImg.toLocaleString('nl-NL') + ' van ' + d.total.toLocaleString('nl-NL') + ')</span></div>';
     }).join('');
     bodyEl.innerHTML =
-      '<p class="analysis-note">Percentage werken <strong>met een afbeelding</strong> in de linked data, per periode, over de hele collectie (filters gelden hier niet). Ontbreekt een afbeelding hier, dan staat er bij dat werk soms nog wel een doorlink naar de Beeldbank.</p>' +
+      '<p class="analysis-note">Percentage werken <strong>met een afbeelding</strong> in de linked data, per periode, onder de werken die een periode hebben (filters gelden hier niet). Ontbreekt een afbeelding hier, dan staat er bij dat werk soms nog wel een doorlink naar de Beeldbank.</p>' +
       '<div class="rank-list">' + rowsHtml + '</div>';
   }
 
@@ -1472,7 +1484,7 @@
     }).join('');
 
     bodyEl.innerHTML =
-      '<p class="analysis-note">Kruistabel van genre (rijen, alle ' + genreOrder.length + ') tegen de ' + MATERIAL_MAX + ' meestgebruikte materialen (kolommen), plus "Overig" voor de rest &mdash; over de <strong>hele collectie</strong> (filters gelden hier niet). Donkerder vlak = meer werken in die combinatie.</p>' +
+      '<p class="analysis-note">Kruistabel van genre (rijen, alle ' + genreOrder.length + ') tegen de ' + MATERIAL_MAX + ' meestgebruikte materialen (kolommen), plus "Overig" voor de rest. Telt de werken die zowel een <strong>genre</strong> als een <strong>materiaal</strong> hebben (filters gelden hier niet). Donkerder vlak = meer werken in die combinatie.</p>' +
       '<div class="analysis-table-wrap"><table class="analysis-table"><thead>' + theadHtml + '</thead><tbody>' + tbodyHtml + '</tbody></table></div>';
   }
 
@@ -1482,22 +1494,38 @@
       bodyEl.innerHTML = '<p class="analysis-note">Geen data gevonden.</p>';
       return;
     }
-    var items = rows.map(function (r) {
-      return { label: r.license ? rightsLabel(r.license.value) : 'Geen rechtenstatus vermeld op het werk', cnt: parseInt(r.cnt.value, 10) };
+    // Different rightsstatements.org URIs can translate to the same Dutch label (RIGHTS_LABELS
+    // maps both a localized "page" URI and the canonical "vocab" URI to "In Copyright", for
+    // instance) -- merge those into one bar so the same status doesn't show up twice, but keep
+    // every contributing URI visible as a source link. A translated label alone hides exactly
+    // the thing a reviewer asked to verify: which rightsstatements.org/CC term this actually is.
+    var byLabel = {}, order = [];
+    rows.forEach(function (r) {
+      var uri = r.license ? r.license.value : null;
+      var label = uri ? rightsLabel(uri) : 'Geen rechtenstatus bij de afbeelding vermeld';
+      var cnt = parseInt(r.cnt.value, 10);
+      if (!byLabel[label]) { byLabel[label] = { label: label, cnt: 0, uris: [] }; order.push(label); }
+      byLabel[label].cnt += cnt;
+      if (uri) byLabel[label].uris.push(uri);
     });
+    var items = order.map(function (l) { return byLabel[l]; });
     items.sort(function (a, b) { return b.cnt - a.cnt; });
     var grandTotal = items.reduce(function (s, i) { return s + i.cnt; }, 0);
     var maxC = items[0] ? items[0].cnt : 0;
     var rowsHtml = items.map(function (i) {
       var pct = maxC ? Math.max(2, Math.round(i.cnt / maxC * 100)) : 2;
       var sharePct = grandTotal ? Math.round(i.cnt / grandTotal * 100) : 0;
-      return '<div class="rank-row">' +
+      var sourceHtml = i.uris.length
+        ? '<div class="rank-source">' + i.uris.map(function (u) { return '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>'; }).join(' &middot; ') + '</div>'
+        : '';
+      return '<div class="rank-row-wrap"><div class="rank-row">' +
         '<span class="rank-name">' + esc(i.label) + '</span>' +
         '<span class="rank-bar-track"><span class="rank-bar-fill" style="width:' + pct + '%"></span></span>' +
-        '<span class="rank-count tabular">' + i.cnt.toLocaleString('nl-NL') + ' (' + sharePct + '%)</span></div>';
+        '<span class="rank-count tabular">' + i.cnt.toLocaleString('nl-NL') + ' (' + sharePct + '%)</span></div>' +
+        sourceHtml + '</div>';
     }).join('');
     bodyEl.innerHTML =
-      '<p class="analysis-note">Rechtenstatus van het werk zelf, over de <strong>hele collectie</strong> (filters gelden hier niet) &mdash; dit is de status van het werk als geheel, niet per se van elke afzonderlijke foto/scan ervan (zie de rechtenvermelding per afbeelding in de detailweergave voor dat onderscheid).</p>' +
+      '<p class="analysis-note">Rechtenstatus van <strong>de afbeelding</strong> (niet van het werk zelf &mdash; die twee kunnen verschillen, zie de rechtenvermelding per afbeelding in de detailweergave). Alleen werken die een afbeelding hebben tellen hier mee &mdash; zie "Afbeeldingsdekking" voor hoeveel dat er zijn. Over de <strong>hele collectie</strong>, filters gelden hier niet.</p>' +
       '<div class="rank-list">' + rowsHtml + '</div>';
   }
 
