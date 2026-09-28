@@ -98,6 +98,16 @@ Zes punten uit de Sampo-UI-verkenning, elk als los plan. Volgorde is niet per se
 
 ---
 
+## 7. ✅ Linked-data-paneel en herkenbare time-outs (2026-09-28)
+
+**Geïmplementeerd** (ideeën overgenomen van [kvistgaard/opsis](https://github.com/kvistgaard/opsis), zelfde wijziging als in de Rijksmonumentenverkenner): de uitgeklapte werkregel en elke facetpagina met een eigen URI (genre, materiaal, locatie, maker met RKD-link) tonen de bron-URI met kopieerknop en een inklapbaar blok "Alle gegevens als linked data": alle uitgaande triples en inkomende links, pas opgehaald bij openklikken, geneste URI's zelf weer uitklapbaar (max. 4 niveaus). Het losse CHO-URI-veld in het detailraster is daardoor vervangen. Labels via `schema:name|rdfs:label|skos:prefLabel`, Nederlands eerst.
+
+Time-outs (TriplyDB: HTTP 504 na ~1 minuut) krijgen een eigen melding i.p.v. de kale foutcode; een afgekapt antwoord (HTTP 206) toont een waarschuwing dat aantallen onvolledig kunnen zijn.
+
+**Nog te doen:** live controleren tegen het echte endpoint met token — in de ontwikkelsessie was er geen `RCE_TOKEN`, dus alleen getest met nagebootste antwoorden (paneel, geneste knooppunten, 206, 504).
+
+---
+
 ## Openstaande vragen voor volgende sessie
 
 - [x] Hebben Place-nodes (`schema:locationCreated`) coördinaten, of alleen een naam? → **Nee, geen coördinaten**; 37/1060 plaatsen hebben wel een GeoNames-`sameAs`. (punt 1)

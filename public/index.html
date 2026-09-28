@@ -397,6 +397,29 @@
   .jaar-cell { font-family: var(--font-mono); white-space: nowrap; }
 
   tr.detail-row td { background: var(--paper); padding: 16px; }
+  .ld-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border); max-width: 900px; }
+  .ld-uri { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 11.5px; margin-bottom: 8px; }
+  .ld-uri-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
+  .ld-uri code { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
+  .ld-copy { background: none; border: none; padding: 2px 3px; cursor: pointer; color: var(--muted); font-size: 11px; line-height: 1; vertical-align: middle; }
+  .ld-copy:hover, .ld-copy.done { color: var(--gold); }
+  .ld-ext { color: var(--muted); text-decoration: none; font-size: 12px; padding: 0 2px; }
+  .ld-ext:hover { color: var(--gold); }
+  .ld-panel > summary { cursor: pointer; font-family: var(--font-mono); font-size: 11.5px; color: var(--gold); }
+  .ld-panel.ld-nested { display: inline; }
+  .ld-panel.ld-nested > summary { display: inline; font-family: var(--font-body); font-size: 12px; color: var(--ink); text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+  .ld-panel.ld-nested > summary:hover { color: var(--gold); }
+  .ld-panel.ld-nested[open] > .ld-body { display: block; margin: 6px 0 4px; padding: 4px 0 4px 12px; border-left: 2px solid var(--gold-soft); }
+  .ld-body { margin-top: 8px; }
+  .ld-meta { font-size: 11.5px; color: var(--muted); margin: 0 0 6px; }
+  .ld-h { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 4px; }
+  table.ld-table { font-size: 12px; width: 100%; }
+  tr.detail-row .ld-table td, .ld-table td { background: transparent; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--grey-soft); vertical-align: top; }
+  .ld-table td.ld-p { width: 32%; min-width: 120px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
+  .ld-lit { white-space: pre-line; overflow-wrap: anywhere; }
+  .ld-dt { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+  #entityLd .ld-section { margin-top: 10px; }
+
   .detail-flex { display: flex; gap: 18px; flex-wrap: wrap; }
   .detail-thumb {
     position: relative;
@@ -513,6 +536,7 @@
   </p>
 
   <div class="boot-notice" id="bootNotice" hidden></div>
+  <div class="boot-notice" id="queryNotice" role="status" hidden></div>
 
   <div class="help-bar">
     <div class="help-tip"><span class="help-label">Doorklikken</span>Maker, genre, materiaal en locatie in de resultaten zijn klikbaar &mdash; dat opent een eigen pagina met alle werken binnen die waarde.</div>
@@ -653,6 +677,7 @@
       <p class="entity-meta" id="entityMeta"></p>
       <p class="entity-bio" id="entityBio" hidden></p>
       <div class="entity-breakdown" id="entityBreakdown"></div>
+      <div id="entityLd"></div>
     </div>
     <div class="table-scroll">
       <table>
@@ -743,15 +768,46 @@
 
   // Centralised so a future token/proxy swap (planned once this endpoint
   // is locked down) only needs to change this one function.
+  // Two ways an endpoint can fail to give a full answer, both made visible instead of passing
+  // for an ordinary error or a complete result (idea taken from kvistgaard/opsis):
+  // - a time-out. The RCE endpoints (TriplyDB) stops a query after about a minute and answers
+  //   HTTP 504 {"message":"Query has timed out."} (live-verified 2026-09-28 on the sister
+  //   CHO endpoint with a store-wide GROUP BY; same platform). The error carries .timeout so callers can say so, and suggest
+  //   narrowing the filter, instead of a bare "Fout bij ophalen".
+  // - a partial answer. Virtuoso-style endpoints can answer HTTP 206 with the rows they had
+  //   when the limit hit. RCE doesn't do this today, but if it ever does those rows are kept
+  //   and a notice says counts may be incomplete, rather than showing them as the whole set.
   function runQuery(query) {
     var url = ENDPOINT + '?query=' + encodeURIComponent(query);
     return fetch(url, { headers: { 'Accept': 'application/sparql-results+json' } })
       .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (!r.ok) {
+          return r.text().then(function (body) {
+            var err = new Error('HTTP ' + r.status);
+            err.status = r.status;
+            err.timeout = r.status === 504 || r.status === 408 || /timed?\s*-?out/i.test(body);
+            throw err;
+          });
+        }
+        if (r.status === 206) showPartialNotice();
         return r.json();
       })
       .then(function (json) { return json.results.bindings; });
   }
+
+  function errorText(err, fallback) {
+    if (err && err.timeout) return 'De RCE-server brak deze zoekopdracht af na ongeveer een minuut (time-out). Maak het filter specifieker en probeer het opnieuw.';
+    return fallback;
+  }
+
+  // Cleared at the start of every new load (results, entity page, record page), so it only
+  // ever describes what is on screen now.
+  function showPartialNotice() {
+    var el = document.getElementById('queryNotice');
+    el.textContent = 'Let op: de server heeft een of meer antwoorden afgekapt op zijn tijdslimiet. Aantallen en lijsten kunnen onvolledig zijn.';
+    el.hidden = false;
+  }
+  function clearPartialNotice() { document.getElementById('queryNotice').hidden = true; }
 
   // ---------- query builders ----------
 
@@ -1563,9 +1619,9 @@
       if (myToken !== analysisReqToken) return; // a newer sub-tab switch already happened
       state.analysisCache[viewId] = rows;
       view.render(rows);
-    }).catch(function () {
+    }).catch(function (err) {
       if (myToken !== analysisReqToken) return;
-      bodyEl.innerHTML = '<div class="type-empty">Kon analysedata niet laden.</div>';
+      bodyEl.innerHTML = '<div class="type-empty">' + esc(errorText(err, 'Kon analysedata niet laden.')) + '</div>';
     });
   }
 
@@ -1594,9 +1650,9 @@
             ? rows.map(function (r) { return { id: r.label.value, label: r.label.value, count: parseInt(r.cnt.value, 10) }; })
             : rows.map(function (r) { return { id: r.uri.value, label: r.labelL.value, count: parseInt(r.cnt.value, 10) }; });
           renderFn();
-        }).catch(function () {
+        }).catch(function (err) {
           if (myToken !== token) return;
-          document.getElementById(listId).innerHTML = '<div class="type-empty">Zoeken mislukt.</div>';
+          document.getElementById(listId).innerHTML = '<div class="type-empty">' + esc(err && err.timeout ? 'Zoeken duurde te lang (time-out). Typ een specifiekere term.' : 'Zoeken mislukt.') + '</div>';
         });
       }, 400);
     });
@@ -1636,7 +1692,6 @@
 
   // ---------- results rendering ----------
 
-  function localId(uri) { return uri.split('/').pop(); }
 
   // Clears exactly the one filter named by `key` and reloads -- shared by each chip's ×
   // button (see renderResultCount) so removing one active filter never touches the others.
@@ -1864,6 +1919,171 @@
     if (btn) btn.focus();
   }
 
+  // ---------- linked-data panel: every triple about a resource, and what links to it ----------
+  // Idea taken from kvistgaard/opsis' entity pane: besides the curated detail fields, show the
+  // resource's source URI and, on request, all its outgoing triples plus the resources that
+  // point at it. Loaded lazily when the <details> opens, so closed rows cost no queries. Any
+  // URI value in the panel is itself a collapsible panel, so e.g. an unlabeled
+  // node can be opened in place to see what it actually says.
+  //
+  // Query shape: the subject/object pairs are picked (and LIMITed) in a subselect first and
+  // only then labelled. Grouping-and-ordering everything before the LIMIT took 7.4 s on a
+  // concept with 63,102 incoming links in the sister CHO dataset; the subselect form took
+  // 0.8 s (live-measured 2026-09-28, same TriplyDB platform).
+  var LD_OUT_CAP = 300;
+  var LD_IN_CAP = 200;
+  var LD_MAX_DEPTH = 4;
+  var LD_PREFIXES = 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nPREFIX schema: <https://schema.org/>\n';
+  // This dataset names things with schema:name; concept schemes may use rdfs/skos labels.
+  var LD_LABEL_PATH = 'schema:name|rdfs:label|skos:prefLabel';
+  var LD_SHORT = [
+    ['https://linkeddata.cultureelerfgoed.nl/def/ceo#', 'ceo:'],
+    ['http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:'],
+    ['http://www.w3.org/2000/01/rdf-schema#', 'rdfs:'],
+    ['http://www.w3.org/2004/02/skos/core#', 'skos:'],
+    ['http://www.w3.org/2002/07/owl#', 'owl:'],
+    ['http://www.opengis.net/ont/geosparql#', 'geo:'],
+    ['http://purl.org/dc/terms/', 'dct:'],
+    ['https://schema.org/', 'schema:'],
+    ['http://schema.org/', 'schema:']
+  ];
+  // A URI goes between angle brackets in a query, and it comes from the data, so anything
+  // that could close the IRI is refused rather than sent.
+  function iriSafe(s) { return typeof s === 'string' && /^https?:\/\/[^\s<>"{}|^`\\]+$/i.test(s); }
+  function shortIri(u) {
+    for (var i = 0; i < LD_SHORT.length; i++) if (u.indexOf(LD_SHORT[i][0]) === 0) return LD_SHORT[i][1] + u.slice(LD_SHORT[i][0].length);
+    return u;
+  }
+  function iriLocalName(u) {
+    var cut = Math.max(u.lastIndexOf('#'), u.lastIndexOf('/'));
+    return (cut >= 0 ? u.slice(cut + 1) : u) || u;
+  }
+  // Dutch label first, then any label (CEO labels some properties only in English).
+  function ldLabel(row, key) {
+    return row[key + 'Nl'] ? row[key + 'Nl'].value : row[key + 'Any'] ? row[key + 'Any'].value : null;
+  }
+  function labelOptionals(v, name) {
+    return '  OPTIONAL { ' + v + ' ' + LD_LABEL_PATH + ' ?' + name + 'N . FILTER(langMatches(lang(?' + name + 'N), "nl")) }\n' +
+           '  OPTIONAL { ' + v + ' ' + LD_LABEL_PATH + ' ?' + name + 'A }\n';
+  }
+  function buildLdOutQuery(iri) {
+    return LD_PREFIXES +
+      'SELECT ?p ?o (SAMPLE(?plN) AS ?plNl) (SAMPLE(?plA) AS ?plAny) (SAMPLE(?olN) AS ?olNl) (SAMPLE(?olA) AS ?olAny) WHERE {\n' +
+      '  { SELECT DISTINCT ?p ?o WHERE { <' + iri + '> ?p ?o } LIMIT ' + (LD_OUT_CAP + 1) + ' }\n' +
+      labelOptionals('?p', 'pl') + labelOptionals('?o', 'ol') +
+      '} GROUP BY ?p ?o ORDER BY ?p ?o';
+  }
+  function buildLdInQuery(iri) {
+    return LD_PREFIXES +
+      'SELECT ?s ?p (SAMPLE(?plN) AS ?plNl) (SAMPLE(?plA) AS ?plAny) (SAMPLE(?slN) AS ?slNl) (SAMPLE(?slA) AS ?slAny) WHERE {\n' +
+      '  { SELECT DISTINCT ?s ?p WHERE { ?s ?p <' + iri + '> } LIMIT ' + (LD_IN_CAP + 1) + ' }\n' +
+      labelOptionals('?p', 'pl') + labelOptionals('?s', 'sl') +
+      '} GROUP BY ?s ?p ORDER BY ?p ?s';
+  }
+
+  var COPY_ICON = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 3.5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v6.5a1 1 0 0 0 1 1h.5"/></svg>';
+  function copyButtonHtml(text) {
+    return '<button type="button" class="ld-copy" data-copy="' + esc(text) + '" title="Kopieer ' + esc(text) + '" aria-label="URI kopiëren">' + COPY_ICON + '</button>';
+  }
+  function extLinkHtml(iri) {
+    return '<a class="ld-ext" href="' + esc(iri) + '" target="_blank" rel="noopener" title="Open ' + esc(iri) + ' in een nieuw tabblad">&#8599;</a>';
+  }
+  // The clipboard API needs a secure context; where it refuses, the older selection copy works.
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    var area = document.createElement('textarea');
+    area.value = text; document.body.appendChild(area); area.select();
+    try { document.execCommand('copy'); } finally { area.remove(); }
+    return Promise.resolve();
+  }
+
+  // A URI value inside the panel: collapsible in place (up to LD_MAX_DEPTH levels), plus copy
+  // and open-in-new-tab. Beyond the depth limit it is a plain external link.
+  function ldValueHtml(iri, label, depth) {
+    var text = label || shortIri(iri);
+    if (!iriSafe(iri)) return esc(text);
+    if (depth >= LD_MAX_DEPTH) return '<a href="' + esc(iri) + '" target="_blank" rel="noopener" title="' + esc(iri) + '">' + esc(text) + '</a>';
+    return '<details class="ld-panel ld-nested" data-uri="' + esc(iri) + '" data-depth="' + (depth + 1) + '">' +
+      '<summary title="' + esc(iri) + '">' + esc(text) + '</summary>' + copyButtonHtml(iri) + extLinkHtml(iri) +
+      '<div class="ld-body"></div></details>';
+  }
+
+  // The block appended to every detail view: source URI always visible, full data on request.
+  function ldSectionHtml(iri) {
+    if (!iriSafe(iri)) return '';
+    return '<div class="ld-section">' +
+      '<div class="ld-uri"><span class="ld-uri-label">Bron-URI</span><code>' + esc(iri) + '</code>' + copyButtonHtml(iri) + extLinkHtml(iri) + '</div>' +
+      '<details class="ld-panel ld-root" data-uri="' + esc(iri) + '" data-depth="0">' +
+      '<summary>Alle gegevens als linked data</summary><div class="ld-body"></div></details>' +
+      '</div>';
+  }
+
+  function ldLiteralHtml(o) {
+    var extra = o['xml:lang'] ? '@' + o['xml:lang'] : o.datatype ? shortIri(o.datatype).replace(/^http:\/\/www\.w3\.org\/2001\/XMLSchema#/, 'xsd:') : '';
+    return '<span class="ld-lit">' + esc(o.value) + '</span>' + (extra ? ' <span class="ld-dt">' + esc(extra) + '</span>' : '');
+  }
+
+  function renderLdBody(body, outRows, inRows, depth) {
+    var out = outRows.slice(0, LD_OUT_CAP);
+    var inc = inRows.slice(0, LD_IN_CAP);
+    var propCell = function (r) {
+      return '<td class="ld-p" title="' + esc(r.p.value) + '">' + esc(ldLabel(r, 'pl') || iriLocalName(r.p.value)) + '</td>';
+    };
+    var html = '<p class="ld-meta">' + (outRows.length > LD_OUT_CAP ? 'de eerste ' + LD_OUT_CAP : out.length) + ' gegevens' +
+      (inc.length ? '; verwezen vanuit ' + (inRows.length > LD_IN_CAP ? 'meer dan ' + LD_IN_CAP : inc.length) + ' plek(ken)' : '') +
+      (outRows.length > LD_OUT_CAP || inRows.length > LD_IN_CAP ? '; de rest wordt niet getoond' : '') + '</p>';
+    if (out.length) {
+      html += '<table class="ld-table"><tbody>' + out.map(function (r) {
+        var o = r.o;
+        var val = o.type === 'uri' ? ldValueHtml(o.value, ldLabel(r, 'ol'), depth)
+          : o.type === 'bnode' ? '<span class="no-val">[anonieme knoop]</span>'
+          : ldLiteralHtml(o);
+        return '<tr>' + propCell(r) + '<td>' + val + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    } else {
+      html += '<p class="no-val">Geen gegevens over deze URI in de RCE-dataset.</p>';
+    }
+    if (inc.length) {
+      html += '<h5 class="ld-h">Verwezen vanuit</h5><table class="ld-table"><tbody>' + inc.map(function (r) {
+        var s = r.s.type === 'uri' ? ldValueHtml(r.s.value, ldLabel(r, 'sl'), depth) : '<span class="no-val">[anonieme knoop]</span>';
+        return '<tr>' + propCell(r) + '<td>' + s + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    }
+    body.innerHTML = html;
+  }
+
+  function loadLdPanel(panel) {
+    if (panel.getAttribute('data-loaded')) return;
+    panel.setAttribute('data-loaded', '1');
+    var iri = panel.getAttribute('data-uri');
+    var depth = parseInt(panel.getAttribute('data-depth'), 10) || 0;
+    var body = panel.querySelector(':scope > .ld-body');
+    body.innerHTML = '<p class="ld-meta">Bezig met laden&hellip;</p>';
+    Promise.all([runQuery(buildLdOutQuery(iri)), runQuery(buildLdInQuery(iri))]).then(function (res) {
+      if (!body.isConnected) return;
+      renderLdBody(body, res[0], res[1], depth);
+    }).catch(function (err) {
+      panel.removeAttribute('data-loaded'); // closing and reopening tries again
+      if (!body.isConnected) return;
+      body.innerHTML = '<p class="no-val">' + esc(errorText(err, 'Kon de linked data niet ophalen.')) + '</p>';
+    });
+  }
+
+  // 'toggle' doesn't bubble, so it's caught in the capture phase for every panel on the page.
+  document.addEventListener('toggle', function (e) {
+    var panel = e.target;
+    if (panel.classList && panel.classList.contains('ld-panel') && panel.open) loadLdPanel(panel);
+  }, true);
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('.ld-copy');
+    if (!btn) return;
+    e.stopPropagation();
+    copyText(btn.getAttribute('data-copy')).then(function () {
+      btn.classList.add('done'); btn.textContent = '✓';
+      setTimeout(function () { btn.classList.remove('done'); btn.innerHTML = COPY_ICON; }, 1200);
+    });
+  }, true);
+
   // Shared expandable detail panel (image(s), rights, description, cross-linked
   // genre/materiaal/maker) used by both the main results table and an entity page's own
   // work list, so a title never has to leave the app just to see what it's a picture of.
@@ -1904,9 +2124,9 @@
           '<div><dt>Wat</dt><dd>' + (what ? esc(what) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>Afmetingen</dt><dd>' + (size ? esc(size) : '<span class="no-val">onbekend</span>') + '</dd></div>' +
           '<div><dt>Documentnummer</dt><dd>' + (docNr ? '<span class="tabular">' + esc(docNr) + '</span>' : '<span class="no-val">onbekend</span>') + '</dd></div>' +
-          '<div><dt>CHO-URI</dt><dd style="font-family:var(--font-mono);font-size:10.5px;word-break:break-all;"><a href="' + esc(row.s.value) + '" target="_blank" rel="noopener">' + esc(localId(row.s.value)) + '</a></dd></div>' +
           (beeldbank ? '<div><dt>Beeldbank</dt><dd><a href="' + esc(beeldbank) + '" target="_blank" rel="noopener">bekijk record &rarr;</a></dd></div>' : '') +
         '</dl>' +
+        ldSectionHtml(row.s && row.s.value) +
       '</div>' +
     '</div></td>';
   }
@@ -2020,6 +2240,7 @@
 
   function loadEntityPage() {
     var token = ++entityReqToken;
+    clearPartialNotice();
     var dim = state.viewDim, id = state.viewId;
     state.entityOpenRow = null;
     var def = ENTITY_DIMENSIONS[dim];
@@ -2029,6 +2250,9 @@
     document.getElementById('entityMeta').textContent = 'Bezig met laden…';
     document.getElementById('entityBio').hidden = true;
     document.getElementById('entityBreakdown').innerHTML = '';
+    // Genre/materiaal/locatie and RKD-linked makers have their own URI (a maker without an
+    // RKD link is grouped by name string, so it gets none): show it and its linked data.
+    document.getElementById('entityLd').innerHTML = ldSectionHtml(id);
     document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">Bezig met zoeken…</td></tr>';
     document.getElementById('entityPrevBtn').disabled = true;
     document.getElementById('entityNextBtn').disabled = true;
@@ -2082,7 +2306,7 @@
       document.getElementById('entityNextBtn').disabled = state.entityOffset + PAGE_SIZE >= total;
     }).catch(function (e) {
       if (token !== entityReqToken) return;
-      document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">' + esc(e.message) + '</td></tr>';
+      document.getElementById('entityWorksBody').innerHTML = '<tr><td colspan="3" class="state-msg">' + esc(errorText(e, e.message)) + '</td></tr>';
     });
   }
 
@@ -2123,6 +2347,7 @@
 
   function loadResults() {
     var token = ++reqToken;
+    clearPartialNotice();
     renderResultCount(null);
     document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">Bezig met zoeken&hellip;</td></tr>';
     document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">Bezig met zoeken&hellip;</div>';
@@ -2153,9 +2378,9 @@
       document.getElementById('nextBtnG').disabled = atEnd;
     }).catch(function (e) {
       if (token !== reqToken) return;
-      document.getElementById('resultCount').textContent = 'Fout bij ophalen resultaten.';
-      document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">' + esc(e.message) + '</td></tr>';
-      document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">' + esc(e.message) + '</div>';
+      document.getElementById('resultCount').textContent = e && e.timeout ? 'Geen resultaten (time-out).' : 'Fout bij ophalen resultaten.';
+      document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">' + esc(errorText(e, e.message)) + '</td></tr>';
+      document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">' + esc(errorText(e, e.message)) + '</div>';
     });
   }
 
