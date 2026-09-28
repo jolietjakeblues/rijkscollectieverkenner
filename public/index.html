@@ -752,6 +752,7 @@
     viewId: null,        // maker name, or genre/materiaal URI
     entityOffset: 0,
     entityOpenRow: null,
+    filterLabels: {},    // labels for filters restored from a #/zoek link, before their option lists know them
     // Collapsed by default (see .facet-toggle CSS) -- a group flips to true the moment its
     // filter becomes active (render*Facet()) or the user clicks its header, and stays open
     // afterwards even if the filter is cleared again, so a manual "leave it open" choice
@@ -777,9 +778,14 @@
   // - a partial answer. Virtuoso-style endpoints can answer HTTP 206 with the rows they had
   //   when the limit hit. RCE doesn't do this today, but if it ever does those rows are kept
   //   and a notice says counts may be incomplete, rather than showing them as the whole set.
+  // Sent as a form POST (the SPARQL protocol's most widely accepted form, as kvistgaard/opsis
+  // does): no URL-length ceiling for long VALUES blocks, and a form post needs no CORS preflight.
   function runQuery(query) {
-    var url = ENDPOINT + '?query=' + encodeURIComponent(query);
-    return fetch(url, { headers: { 'Accept': 'application/sparql-results+json' } })
+    return fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Accept': 'application/sparql-results+json' },
+      body: new URLSearchParams({ query: query })
+    })
       .then(function (r) {
         if (!r.ok) {
           return r.text().then(function (body) {
@@ -1610,6 +1616,7 @@
   function loadAnalysisView(viewId) {
     state.analysisView = viewId;
     renderAnalysisSubtabs();
+    syncBrowseUrl();
     var view = ANALYSIS_VIEWS[viewId];
     var bodyEl = document.getElementById('analysisBody');
     var myToken = ++analysisReqToken;
@@ -1726,14 +1733,14 @@
 
     var chips = [];
     if (state.maker) chips.push({ key: 'maker', label: state.maker });
-    if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; if (g) chips.push({ key: 'genre', label: g.label }); }
+    if (state.genreUri) { var g = state.genreOptions.filter(function (o) { return o.id === state.genreUri; })[0]; chips.push({ key: 'genre', label: g ? g.label : (state.filterLabels.genre || 'genre') }); }
     if (state.materialUri) {
       var m = (state.materialSearchResults || state.materialOptions).filter(function (o) { return o.id === state.materialUri; })[0];
-      chips.push({ key: 'material', label: m ? m.label : 'materiaal' });
+      chips.push({ key: 'material', label: m ? m.label : (state.filterLabels.material || 'materiaal') });
     }
     if (state.locationUri) {
       var l = (state.locationSearchResults || state.locationOptions).filter(function (o) { return o.id === state.locationUri; })[0];
-      chips.push({ key: 'location', label: l ? l.label : 'locatie' });
+      chips.push({ key: 'location', label: l ? l.label : (state.filterLabels.location || 'locatie') });
     }
     if (state.periodBucket) { var p = PERIOD_BUCKETS.filter(function (b) { return b.id === state.periodBucket; })[0]; if (p) chips.push({ key: 'period', label: p.label }); }
     if (state.yearFrom || state.yearTo) {
@@ -2332,22 +2339,27 @@
     }
   }
 
-  function closeEntityPage() {
+  // fromHash: called because the URL already changed (Back/Forward, a pasted link) -- then
+  // the history must be left alone, or it would overwrite the address being navigated to.
+  function closeEntityPage(fromHash) {
     state.view = 'browse';
     state.viewDim = null;
     state.viewId = null;
     document.querySelector('.layout').hidden = false;
     document.getElementById('entityView').hidden = true;
-    if (location.hash) history.pushState('', document.title, location.pathname + location.search);
+    var h = browseHash();
+    if (!fromHash && location.hash !== h) history.pushState(null, '', location.pathname + location.search + h);
   }
 
   // ---------- data flow ----------
 
   var reqToken = 0;
+  var lastCount = null; // total of the last completed load, so chips can re-render without it resetting to "…"
 
   function loadResults() {
     var token = ++reqToken;
     clearPartialNotice();
+    syncBrowseUrl();
     renderResultCount(null);
     document.getElementById('resultsBody').innerHTML = '<tr><td colspan="4" class="state-msg">Bezig met zoeken&hellip;</td></tr>';
     document.getElementById('galleryGrid').innerHTML = '<div class="state-msg">Bezig met zoeken&hellip;</div>';
@@ -2365,6 +2377,7 @@
       state.lastRows = rows;
       state.openRow = null;
       var total = countRows.length ? parseInt(countRows[0].cnt.value, 10) : rows.length;
+      lastCount = total;
       renderResultCount(total);
       renderTable(rows);
       renderGallery(rows);
@@ -2429,13 +2442,13 @@
     if (btn) clearFilterChip(btn.getAttribute('data-clear'));
   });
 
-  document.getElementById('resetBtn').addEventListener('click', function () {
+  function resetAllFilters() {
     clearTimeout(searchTimer); // a just-typed title search was otherwise still pending and would reappear ~450ms after reset
     facetSearchCancellers.forEach(function (cancel) { cancel(); });
     state.maker = null; state.genreUri = null; state.materialUri = null; state.locationUri = null;
     state.periodBucket = null; state.yearFrom = null; state.yearTo = null; state.hasImage = false; state.search = '';
     state.makerSearchResults = null; state.materialSearchResults = null; state.locationSearchResults = null;
-    state.offset = 0;
+    state.offset = 0; state.filterLabels = {};
     document.getElementById('searchInput').value = '';
     document.getElementById('makerSearch').value = '';
     document.getElementById('materialSearch').value = '';
@@ -2445,6 +2458,9 @@
     document.getElementById('hasImageToggle').checked = false;
     state.facetOpen = { maker: false, genre: false, material: false, location: false };
     renderMakerFacet(); renderGenreFacet(); renderMaterialFacet(); renderLocationFacet(); renderPeriodChart();
+  }
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    resetAllFilters();
     loadResults();
   });
 
@@ -2455,16 +2471,18 @@
     document.getElementById(id).addEventListener('click', function () { state.offset = state.offset + PAGE_SIZE; loadResults(); });
   });
 
+  function setTab(tab) {
+    state.tab = tab;
+    document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === tab); });
+    document.getElementById('tableView').hidden = state.tab !== 'table';
+    document.getElementById('galleryView').hidden = state.tab !== 'gallery';
+    document.getElementById('analysisView').hidden = state.tab !== 'analysis';
+    updateActiveChipsVisibility();
+    if (state.tab === 'analysis') loadAnalysisView(state.analysisView);
+    syncBrowseUrl();
+  }
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      state.tab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
-      document.getElementById('tableView').hidden = state.tab !== 'table';
-      document.getElementById('galleryView').hidden = state.tab !== 'gallery';
-      document.getElementById('analysisView').hidden = state.tab !== 'analysis';
-      updateActiveChipsVisibility();
-      if (state.tab === 'analysis') loadAnalysisView(state.analysisView);
-    });
+    btn.addEventListener('click', function () { setTab(btn.getAttribute('data-tab')); });
   });
 
   document.querySelectorAll('.analysis-subtab').forEach(function (btn) {
@@ -2472,7 +2490,7 @@
   });
   document.getElementById('analysisBody').addEventListener('click', function (e) { handleEntityLinkClick(e); });
 
-  document.getElementById('entityBackBtn').addEventListener('click', closeEntityPage);
+  document.getElementById('entityBackBtn').addEventListener('click', function () { closeEntityPage(); });
   document.getElementById('entityPrevBtn').addEventListener('click', function () { state.entityOffset = Math.max(0, state.entityOffset - PAGE_SIZE); loadEntityPage(); });
   document.getElementById('entityNextBtn').addEventListener('click', function () { state.entityOffset = state.entityOffset + PAGE_SIZE; loadEntityPage(); });
 
@@ -2494,16 +2512,100 @@
     showBootNotice('Deze link kon niet worden geopend (ongeldige waarde) — je ziet nu het gewone zoekscherm.');
   }
 
+  // ---------- shareable search URL: #/zoek?q=...&genre=...&van=1600&pagina=2&weergave=galerij ----------
+  // Idea taken from kvistgaard/opsis (syncUrl): every change to the search -- search term,
+  // any filter, page, tab, analysis sub-tab -- is written into the URL with
+  // history.replaceState, so the address bar always links to what is on screen, without a
+  // back-button step per click. Opening an entity page still pushes, so Back returns here.
+  // A plain first visit keeps a clean URL.
+  var ZOEK_HASH_RE = /^#\/zoek(?:\?(.*))?$/;
+  var TAB_PARAM = { gallery: 'galerij', analysis: 'analyse' };
+  // [url parameter, state key, entity dim for label lookup]
+  var URL_URI_FILTERS = [['genre', 'genreUri', 'genre'], ['materiaal', 'materialUri', 'material'], ['locatie', 'locationUri', 'location']];
+
+  function browseHash() {
+    var p = new URLSearchParams();
+    if (state.search) p.set('q', state.search);
+    if (state.maker) p.set('maker', state.maker);
+    URL_URI_FILTERS.forEach(function (f) { if (state[f[1]]) p.set(f[0], state[f[1]]); });
+    if (state.periodBucket) p.set('periode', state.periodBucket);
+    if (state.yearFrom) p.set('van', String(state.yearFrom));
+    if (state.yearTo) p.set('tot', String(state.yearTo));
+    if (state.hasImage) p.set('afbeelding', '1');
+    if (state.offset) p.set('pagina', String(Math.floor(state.offset / PAGE_SIZE) + 1));
+    if (TAB_PARAM[state.tab]) p.set('weergave', TAB_PARAM[state.tab]);
+    if (state.tab === 'analysis' && state.analysisView !== 'genrePeriod') p.set('analyse', state.analysisView);
+    var qs = p.toString();
+    return qs ? '#/zoek?' + qs : '';
+  }
+  function syncBrowseUrl() {
+    if (state.view !== 'browse') return;
+    var h = browseHash();
+    if (h === location.hash || (!h && !location.hash)) return;
+    history.replaceState(null, '', location.pathname + location.search + h);
+  }
+
+  // Values from a link are untrusted: URIs go into queries between angle brackets and years
+  // as bare numbers, so only well-formed http(s) IRIs (iriSafe), 1-4 digit years and known
+  // period/tab/analysis ids are accepted. Anything else is dropped, not guessed at. Sets
+  // state only; the caller loads.
+  function applyBrowseHash(qs) {
+    var p = new URLSearchParams(qs || '');
+    resetAllFilters();
+    state.search = (p.get('q') || '').trim().slice(0, 200);
+    document.getElementById('searchInput').value = state.search;
+    var maker = (p.get('maker') || '').trim().slice(0, 300);
+    if (maker) state.maker = maker;
+    URL_URI_FILTERS.forEach(function (f) {
+      var v = p.get(f[0]);
+      if (!v || !iriSafe(v)) return;
+      state[f[1]] = v.slice(0, 500);
+      resolveEntityLabel(f[2], v).then(function (label) {
+        if (state[f[1]] !== v) return;
+        state.filterLabels[f[2]] = label;
+        if (state.view === 'browse' && lastCount !== null) renderResultCount(lastCount);
+      }).catch(function () { /* chip keeps its generic name */ });
+    });
+    var bucket = p.get('periode');
+    if (bucket && PERIOD_BUCKETS.some(function (b) { return b.id === bucket; })) state.periodBucket = bucket;
+    ['van', 'tot'].forEach(function (k) {
+      var v = (p.get(k) || '').trim();
+      if (!/^\d{1,4}$/.test(v)) return;
+      state[k === 'van' ? 'yearFrom' : 'yearTo'] = parseInt(v, 10);
+      document.getElementById(k === 'van' ? 'yearFromInput' : 'yearToInput').value = v;
+    });
+    state.hasImage = p.get('afbeelding') === '1';
+    document.getElementById('hasImageToggle').checked = state.hasImage;
+    var page = parseInt(p.get('pagina'), 10);
+    state.offset = page > 1 && page < 100000 ? (page - 1) * PAGE_SIZE : 0;
+    var analyse = p.get('analyse');
+    if (analyse && ANALYSIS_VIEWS[analyse]) state.analysisView = analyse;
+    var weergave = p.get('weergave');
+    var tab = weergave === 'galerij' ? 'gallery' : weergave === 'analyse' ? 'analysis' : 'table';
+    renderMakerFacet(); renderGenreFacet(); renderMaterialFacet(); renderLocationFacet(); renderPeriodChart();
+    if (tab !== state.tab || tab === 'analysis') setTab(tab);
+  }
+
   var ENTITY_HASH_RE = /^#\/entity\/(maker|genre|material|location)\/(.+)$/;
   window.addEventListener('hashchange', function () {
+    var zm = ZOEK_HASH_RE.exec(location.hash);
+    if (zm) {
+      // Compared before closing the entity page: closing rewrites the hash to the current search.
+      var differs = location.hash !== browseHash();
+      if (state.view === 'entity') closeEntityPage(true);
+      if (differs) { applyBrowseHash(zm[1]); loadResults(); }
+      return;
+    }
     var m = ENTITY_HASH_RE.exec(location.hash);
-    if (!m) { if (state.view === 'entity') closeEntityPage(); return; }
+    if (!m) { if (state.view === 'entity') closeEntityPage(true); return; }
     var decodedId = safeDecodeEntityId(m[2]);
-    if (decodedId === null) { dropInvalidEntityHash(); if (state.view === 'entity') closeEntityPage(); return; }
+    if (decodedId === null) { dropInvalidEntityHash(); if (state.view === 'entity') closeEntityPage(true); return; }
     openEntityPage(m[1], decodedId, true);
   });
 
   // ---------- boot ----------
+  var initialZoekMatch = ZOEK_HASH_RE.exec(location.hash);
+  if (initialZoekMatch) applyBrowseHash(initialZoekMatch[1]);
   var initialEntityMatch = ENTITY_HASH_RE.exec(location.hash);
   if (initialEntityMatch) {
     var initialDecodedId = safeDecodeEntityId(initialEntityMatch[2]);
