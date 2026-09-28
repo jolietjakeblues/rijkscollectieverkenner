@@ -118,6 +118,18 @@ Queries gaan nu als form-POST naar de proxy en van daar (met token) naar RCE: ge
 
 ---
 
+## 9. ✅ Horizontale overflow op mobiel (2026-09-28)
+
+**Opgelost**, zelfde aanpak als in de Rijksmonumentenverkenner (#12 daar). Gemeten op 390 px (vóór → na): linked-data-blok open 299 → 0 px, Analyse genre × materiaal 373 → 0 px (ook 63 → 0 op 700 px), facetpagina 237 → 0 px; binnen de resultatentabel viel de uitgeklapte rij rechts buiten het kader (390 én 700 px), nu niet meer. Oorzaken:
+- `.layout` gebruikte `1fr`, dat niet krimpt onder de inhoud; nu `minmax(0, 1fr)`, zodat brede tabellen (resultaten, de matrix) binnen hun eigen scrollkader blijven.
+- linked-data-tabel: `table-layout: fixed` + afbreken van lange URI's (die fix kwam in de monumentenverkenner pas na het overnemen van het paneel).
+- inhoud van een uitgeklapte rij begrensd tot de zichtbare breedte van `.table-scroll` (`100cqw`) en sticky links; tabelkop erboven (`z-index`).
+- paginatitel van een facetpagina breekt af, want die valt terug op de kale URI als een label ontbreekt.
+
+Gemeten met nagebootste (bewust lange) data op 390/700/1200 px: tabel, uitgeklapte rij, open linked-data-blok, galerij, alle vijf analyse-subtabs en facetpagina, overal 0 px overflow.
+
+---
+
 ## Openstaande vragen voor volgende sessie
 
 - [x] Hebben Place-nodes (`schema:locationCreated`) coördinaten, of alleen een naam? → **Nee, geen coördinaten**; 37/1060 plaatsen hebben wel een GeoNames-`sameAs`. (punt 1)
