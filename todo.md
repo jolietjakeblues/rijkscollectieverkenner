@@ -104,7 +104,7 @@ Zes punten uit de Sampo-UI-verkenning, elk als los plan. Volgorde is niet per se
 
 Time-outs (TriplyDB: HTTP 504 na ~1 minuut) krijgen een eigen melding i.p.v. de kale foutcode; een afgekapt antwoord (HTTP 206) toont een waarschuwing dat aantallen onvolledig kunnen zijn.
 
-**Nog te doen:** live controleren tegen het echte endpoint met token — in de ontwikkelsessie was er geen `RCE_TOKEN`, dus alleen getest met nagebootste antwoorden (paneel, geneste knooppunten, 206, 504).
+**✅ Live gecontroleerd (2026-09-28):** na de eerste automatische deploy werkt alles tegen het echte endpoint met token. In de ontwikkelsessie was er geen `RCE_TOKEN`, dus daar alleen getest met nagebootste antwoorden (paneel, geneste knooppunten, 206, 504).
 
 ---
 
@@ -114,7 +114,7 @@ Time-outs (TriplyDB: HTTP 504 na ~1 minuut) krijgen een eigen melding i.p.v. de 
 
 Queries gaan nu als form-POST naar de proxy en van daar (met token) naar RCE: geen URL-lengtegrens, geen CORS-preflight. De proxy accepteert GET `?query=` nog steeds; de limiet van 4000 tekens is ongewijzigd.
 
-**Nog te doen:** net als #7 alleen getest met nagebootste antwoorden; de proxy is getest tot aan RCE (met een neptoken), maar live met het echte token nog controleren.
+**✅ Live gecontroleerd (2026-09-28):** werkt na de eerste automatische deploy, inclusief POST via de proxy met het echte token. In de ontwikkelsessie alleen getest met nagebootste antwoorden en een neptoken.
 
 ---
 
