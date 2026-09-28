@@ -38,6 +38,10 @@ Let op: `public/index.html` los openen (dubbelklikken) of via `python -m http.se
 
 ## Deployen
 
+Automatisch: de Worker `rijkscollectieverkenner` is in Cloudflare (Workers Builds) gekoppeld aan deze repo. Elke merge naar `main` bouwt en deployt vanzelf; de voortgang staat in het Cloudflare-dashboard onder de Worker, tab **Deployments**. Instellingen daar: **Build command** leeg (er is niets te bouwen, de app is statisch), **Deploy command** `npx wrangler deploy`, **Root directory** `/`. De secrets (`RCE_TOKEN`, `SITE_USER`, `SITE_PASSWORD`) staan op de Worker zelf en blijven bij elke automatische deploy behouden.
+
+Handmatig, vanaf een eigen machine met `npx wrangler login`:
+
 ```bash
 npm run deploy
 ```
