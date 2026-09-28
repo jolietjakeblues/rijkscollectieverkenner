@@ -108,6 +108,16 @@ Time-outs (TriplyDB: HTTP 504 na ~1 minuut) krijgen een eigen melding i.p.v. de 
 
 ---
 
+## 8. ✅ Deelbare zoek-URL en queries als form-POST (2026-09-28)
+
+**Geïmplementeerd** (idee van [kvistgaard/opsis](https://github.com/kvistgaard/opsis)' `syncUrl`, zelfde aanpak als in de Rijksmonumentenverkenner): route `#/zoek?q=…&maker=…&genre=…&materiaal=…&locatie=…&periode=…&van=…&tot=…&afbeelding=1&pagina=N&weergave=galerij|analyse&analyse=…`. Elke wijziging wordt met `history.replaceState` in de URL geschreven (geen extra stap in de terugknop per klik); een makerpagina e.d. openen pusht nog wel. Een kale eerste bezoek houdt een schone URL. Waarden uit een link worden gecontroleerd (URI's alleen als geldige http(s)-IRI, jaartallen 1–4 cijfers, periode/weergave/analyse alleen bekende waarden); ongeldige waarden vallen weg. Labels van genre/materiaal/locatie worden los opgehaald, zodat de chip de echte naam toont.
+
+Queries gaan nu als form-POST naar de proxy en van daar (met token) naar RCE: geen URL-lengtegrens, geen CORS-preflight. De proxy accepteert GET `?query=` nog steeds; de limiet van 4000 tekens is ongewijzigd.
+
+**Nog te doen:** net als #7 alleen getest met nagebootste antwoorden; de proxy is getest tot aan RCE (met een neptoken), maar live met het echte token nog controleren.
+
+---
+
 ## Openstaande vragen voor volgende sessie
 
 - [x] Hebben Place-nodes (`schema:locationCreated`) coördinaten, of alleen een naam? → **Nee, geen coördinaten**; 37/1060 plaatsen hebben wel een GeoNames-`sameAs`. (punt 1)
