@@ -80,6 +80,9 @@ function loginPageHtml(showError) {
 '<meta charset="utf-8">\n' +
 '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
 '<title>Inloggen &mdash; Rijkscollectie Verkenner</title>\n' +
+'<meta name="description" content="Inloggen voor de Rijkscollectie Verkenner, een facetzoek-portal op de kunst- en objectencollectie van de Rijksdienst voor het Cultureel Erfgoed.">\n' +
+'<meta name="robots" content="noindex">\n' +
+'<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 32 32\'%3E%3Crect width=\'32\' height=\'32\' rx=\'6\' fill=\'%2317130d\'/%3E%3Ctext x=\'16\' y=\'23\' font-family=\'Georgia,serif\' font-size=\'20\' font-weight=\'700\' fill=\'%23f0c14e\' text-anchor=\'middle\'%3ER%3C/text%3E%3C/svg%3E">\n' +
 '<style>\n' +
 '  :root { --paper:#17130d; --ink:#ece4d4; --muted:#ab9d84; --border:#362c1e; --gold:#f0c14e; --surface:#201a12; }\n' +
 '  * { box-sizing: border-box; }\n' +
@@ -160,6 +163,12 @@ export default {
       }
       return loginPageResponse(true);
     }
+
+    // The banner image is the og:image for link previews (Slack, e-mail, ...) -- those
+    // unfurl bots have no session cookie, so gating this one decorative, non-sensitive
+    // asset the same as everything else would leave every shared link with a broken/missing
+    // preview image. Nothing collection-related is exposed here, just the static banner.
+    if (url.pathname === '/images/banner.webp') return env.ASSETS.fetch(request);
 
     if (!(await hasValidSession(request, env))) return loginPageResponse(false);
 
