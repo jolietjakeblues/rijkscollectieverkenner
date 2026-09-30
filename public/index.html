@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rijkscollectie Verkenner</title>
+<meta name="description" content="Doorzoek en verken de Rijkscollectie van de Rijksdienst voor het Cultureel Erfgoed &mdash; filter op maker, genre, materiaal, periode en locatie, met rechtenvermelding per werk.">
+<link rel="canonical" href="https://rijkscollectieverkenner.jolietjakeblues64.workers.dev/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Rijkscollectie Verkenner">
+<meta property="og:description" content="Doorzoek en verken de Rijkscollectie van de Rijksdienst voor het Cultureel Erfgoed &mdash; filter op maker, genre, materiaal, periode en locatie.">
+<meta property="og:url" content="https://rijkscollectieverkenner.jolietjakeblues64.workers.dev/">
+<meta property="og:image" content="https://rijkscollectieverkenner.jolietjakeblues64.workers.dev/images/banner.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2317130d'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-weight='700' fill='%23f0c14e' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root {
@@ -148,6 +157,12 @@
      with their own scrollable lists used to push the sidebar far below the fold on first
      load. Closed by default; a group auto-opens the moment its filter becomes active (see
      render*Facet()), so an active filter never ends up hidden behind a collapsed header. */
+  /* Wraps the toggle button so Maker/Genre/Materiaal/Locatie stay real headings for
+     screen-reader heading navigation (WAI-ARIA accordion pattern) -- purely semantic, reset
+     to the surrounding font so it changes nothing visually; .facet-toggle carries all the
+     actual appearance. The extra ".facet-group h2" in this selector matches that rule's own
+     specificity so this reset actually wins instead of losing to source order. */
+  .facet-group h2.facet-heading { display: block; margin: 0; font: inherit; }
   .facet-toggle {
     width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
     background: none; border: none; padding: 2px 0; margin: 0 0 4px; font: inherit; cursor: pointer;
@@ -580,10 +595,10 @@
       </div>
 
       <div class="facet-group">
-        <button class="facet-toggle" type="button" data-facet="maker" id="facetToggle-maker" aria-expanded="false" aria-controls="facetBody-maker">
+        <h2 class="facet-heading"><button class="facet-toggle" type="button" data-facet="maker" id="facetToggle-maker" aria-expanded="false" aria-controls="facetBody-maker">
           <span class="facet-toggle-label">Maker <span class="count-tag" id="makerFacetNote"></span></span>
           <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
-        </button>
+        </button></h2>
         <div class="facet-body" id="facetBody-maker" hidden>
           <input type="text" class="type-search" id="makerSearch" placeholder="filter makers&hellip;" autocomplete="off">
           <div class="type-list" id="makerList"><div class="type-empty">Bezig met laden&hellip;</div></div>
@@ -591,20 +606,20 @@
       </div>
 
       <div class="facet-group">
-        <button class="facet-toggle" type="button" data-facet="genre" id="facetToggle-genre" aria-expanded="false" aria-controls="facetBody-genre">
+        <h2 class="facet-heading"><button class="facet-toggle" type="button" data-facet="genre" id="facetToggle-genre" aria-expanded="false" aria-controls="facetBody-genre">
           <span class="facet-toggle-label">Genre <span class="count-tag" id="genreFacetNote"></span></span>
           <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
-        </button>
+        </button></h2>
         <div class="facet-body" id="facetBody-genre" hidden>
           <div class="type-list" id="genreList"><div class="type-empty">Bezig met laden&hellip;</div></div>
         </div>
       </div>
 
       <div class="facet-group">
-        <button class="facet-toggle" type="button" data-facet="material" id="facetToggle-material" aria-expanded="false" aria-controls="facetBody-material">
+        <h2 class="facet-heading"><button class="facet-toggle" type="button" data-facet="material" id="facetToggle-material" aria-expanded="false" aria-controls="facetBody-material">
           <span class="facet-toggle-label">Materiaal <span class="count-tag" id="materialFacetNote"></span></span>
           <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
-        </button>
+        </button></h2>
         <div class="facet-body" id="facetBody-material" hidden>
           <input type="text" class="type-search" id="materialSearch" placeholder="filter materialen&hellip;" autocomplete="off">
           <div class="type-list" id="materialList"><div class="type-empty">Bezig met laden&hellip;</div></div>
@@ -612,10 +627,10 @@
       </div>
 
       <div class="facet-group">
-        <button class="facet-toggle" type="button" data-facet="location" id="facetToggle-location" aria-expanded="false" aria-controls="facetBody-location">
+        <h2 class="facet-heading"><button class="facet-toggle" type="button" data-facet="location" id="facetToggle-location" aria-expanded="false" aria-controls="facetBody-location">
           <span class="facet-toggle-label">Locatie <span class="count-tag" id="locationFacetNote"></span></span>
           <span class="facet-chevron" aria-hidden="true">&rsaquo;</span>
-        </button>
+        </button></h2>
         <div class="facet-body" id="facetBody-location" hidden>
           <input type="text" class="type-search" id="locationSearch" placeholder="filter locaties&hellip;" autocomplete="off">
           <div class="type-list" id="locationList"><div class="type-empty">Bezig met laden&hellip;</div></div>
